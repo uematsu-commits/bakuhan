@@ -50,6 +50,9 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
 #btn-turn{background:var(--vermilion);color:#fff;border:none;padding:.45rem 1.1rem;font-size:.85rem;font-family:inherit;cursor:pointer;border-radius:3px;transition:all .2s;white-space:nowrap;font-weight:bold}
 #btn-turn:hover{background:var(--vermilion-dark)}
 #btn-turn:disabled{opacity:.5;cursor:not-allowed}
+#btn-skip{background:#555;color:#fff;border:none;padding:.45rem .8rem;font-size:.78rem;font-family:inherit;cursor:pointer;border-radius:3px;transition:all .2s;white-space:nowrap}
+#btn-skip:hover{background:#333}
+#btn-skip:disabled{opacity:.5;cursor:not-allowed}
 
 /* MAIN GRID */
 #game-main{display:grid;grid-template-columns:250px 1fr 270px;flex:1}
@@ -184,6 +187,10 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
 .trend-dn{color:var(--red);font-size:.7rem}
 .trend-eq{color:var(--border);font-size:.7rem}
 
+/* 今月イベントバッジ */
+.ev-new{box-shadow:0 0 0 1px var(--gold)}
+.badge-now{display:inline-block;background:var(--vermilion);color:#fff;font-size:.6rem;padding:0 5px;border-radius:3px;margin-right:4px;font-weight:bold;vertical-align:middle}
+
 /* SUMMARY SCREEN */
 #summary-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:1100;align-items:center;justify-content:center;overflow-y:auto}
 .summary-box{background:var(--paper);border:3px solid var(--gold);border-radius:8px;padding:2rem;max-width:560px;width:94%;margin:auto}
@@ -233,6 +240,7 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
     <div class="hstat"><div class="hl">幕府</div><div class="hv" id="h-bakufu">-</div></div>
     <div class="hspacer"></div>
     <span id="h-phase" class="phase-badge phase-s">確立期</span>
+    <button id="btn-skip" title="1年分（12ヶ月）まとめて進める">1年 ▶▶</button>
     <button id="btn-turn">次の月へ →</button>
   </div>
   <div class="year-progress"><div class="year-progress-bar" id="year-bar"></div></div>
@@ -309,11 +317,11 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
     <div class="panel panel-right">
       <div class="psec">
         <h4>◆ 重要指標</h4>
-        <div class="srow"><div class="slabel">民心</div><div class="sbar-wrap"><div class="sbar bg" id="bar-minshin"></div></div><div class="sval" id="val-minshin">-</div></div>
-        <div class="srow"><div class="slabel">威信</div><div class="sbar-wrap"><div class="sbar bgold" id="bar-prestige"></div></div><div class="sval" id="val-prestige">-</div></div>
-        <div class="srow"><div class="slabel">幕府心象</div><div class="sbar-wrap"><div class="sbar bb" id="bar-bakufu"></div></div><div class="sval" id="val-bakufu">-</div></div>
-        <div class="srow"><div class="slabel">蘭学</div><div class="sbar-wrap"><div class="sbar bp" id="bar-rankaku"></div></div><div class="sval" id="val-rankaku">-</div></div>
-        <div class="srow"><div class="slabel">軍事力</div><div class="sbar-wrap"><div class="sbar br" id="bar-military"></div></div><div class="sval" id="val-military">-</div></div>
+        <div class="srow" title="領民の満足度。30以下で一揆リスク、80以上で収入ボーナス。0で改易。"><div class="slabel">民心 ❓</div><div class="sbar-wrap"><div class="sbar bg" id="bar-minshin"></div></div><div class="sval" id="val-minshin">-</div></div>
+        <div class="srow" title="藩の格式・名声。高いほど幕府や朝廷での発言力が増す。"><div class="slabel">威信 ❓</div><div class="sbar-wrap"><div class="sbar bgold" id="bar-prestige"></div></div><div class="sval" id="val-prestige">-</div></div>
+        <div class="srow" title="幕府からの評判。5以下で改易命令が下る。参勤交代・献上金で上昇。"><div class="slabel">幕府心象 ❓</div><div class="sbar-wrap"><div class="sbar bb" id="bar-bakufu"></div></div><div class="sval" id="val-bakufu">-</div></div>
+        <div class="srow" title="西洋の学問・技術の浸透度。高いほど軍事近代化や産業効率が上がる。"><div class="slabel">蘭学 ❓</div><div class="sbar-wrap"><div class="sbar bp" id="bar-rankaku"></div></div><div class="sval" id="val-rankaku">-</div></div>
+        <div class="srow" title="藩の軍事力。一揆鎮圧・外圧対応に影響する。富国強兵政策で向上。"><div class="slabel">軍事力 ❓</div><div class="sbar-wrap"><div class="sbar br" id="bar-military"></div></div><div class="sval" id="val-military">-</div></div>
       </div>
       <div class="psec">
         <h4>◆ 財政概要</h4>
@@ -627,9 +635,10 @@ function newState(domId) {
     bakufu:dom.startBakufu,
     military:30,
     lord,
-    policies:{ finance:0, military:0, domestic:0, education:0, shogunate:0 },
+    policies:{ finance:1, military:0, domestic:0, education:0, shogunate:1 }, // デフォルト：重商主義 + 面従腹背（赤字になりにくい組み合わせ）
     monbatsu:65, jitsuryoku:35,
-    sankin:{ inEdo:false, edoMonths:0, nextSankin:(1603*12+12) },
+    sankin:{ inEdo:false, edoMonths:0, nextSankin:(1603*12+18) }, // 最初の参勤は1.5年後
+    turnEvents:[], // 今ターンで起きたイベント
     heir:true, heirAge:Math.random()<.6?rng(1,14):null,
     monopoly:false, incomeBonus:0,
     tobaku:50,          // 0=佐幕 ～ 100=倒幕
@@ -684,13 +693,14 @@ function calcExpense() {
   for(const t of gs.lord.traits) if(t.ef.expMod) expMod+=t.ef.expMod;
   const base=gs.koku*0.25/12*expMod;
   const edo=gs.dom.baseKoku*0.018/12;
-  const sankinCost=gs.sankin.inEdo?gs.dom.edoDist*280+1500:0;
-  const interest=gs.saikai*0.015;
+  const sankinCost=gs.sankin.inEdo?gs.dom.edoDist*100+600:0;
+  const interest=gs.saikai*0.005; // 月0.5%（年6%）
   return Math.floor(base+edo+sankinCost+interest);
 }
 
 function processTurn() {
   if(!gs||gs.gameOver||pendingChoice) return;
+  gs.turnEvents=[];  // 今ターンのイベントをリセット
   const inc=calcIncome(), exp=calcExpense();
   gs.money+=inc-exp;
   if(gs.money<0){ const b=Math.abs(gs.money)+300; gs.saikai+=b; gs.money=0; addEvent('info','借財増加',`資金不足により大坂商人から${fmt(b)}を借り入れた。`); }
@@ -710,16 +720,21 @@ function processTurn() {
 
 function applyStats() {
   const pol=gs.policies;
-  let md=(60-gs.minshin)*.012;
-  if(pol.finance===0) md-=.5; if(pol.finance===1) md+=.5;
+  // 民心: 60への収束を強め、policy効果を軽減
+  let md=(60-gs.minshin)*.02;  // 収束係数を0.012→0.02に強化
+  if(pol.finance===0) md-=.3; if(pol.finance===1) md+=.3;  // 0.5→0.3に軽減
   if(pol.domestic===1) md+=.3;
   for(const t of gs.lord.traits) if(t.ef.minshinD) md+=t.ef.minshinD;
   gs.minshin=clamp(gs.minshin+md,0,100);
 
-  let bd=(50-gs.bakufu)*.005;
-  if(pol.shogunate===0) bd+=1.5; if(pol.shogunate===1) bd-=.5;
-  if(pol.military===1) bd-=1;
+  // 幕府心象: 財政破綻・赤字が続くと幕府の評判も下がる
+  let bd=(50-gs.bakufu)*.003;
+  if(pol.shogunate===0) bd+=1.2; if(pol.shogunate===1) bd-=.4;
+  if(pol.military===1) bd-=0.8;
   for(const t of gs.lord.traits) if(t.ef.bakufuD) bd+=t.ef.bakufuD;
+  // 財政難が続くと幕府の信頼も下がる
+  if(gs.money===0) bd-=.3;
+  if(gs.saikai>gs.koku*1.5) bd-=.5;
   gs.bakufu=clamp(gs.bakufu+bd,0,100);
 
   let rd=pol.education===1?1.8:0;
@@ -754,19 +769,19 @@ function handleSankin() {
   const tm=gs.year*12+gs.month;
   if(!gs.sankin.inEdo&&tm>=gs.sankin.nextSankin){
     gs.sankin.inEdo=true; gs.sankin.edoMonths=0;
-    const cost=gs.dom.edoDist*280+2000;
+    const cost=gs.dom.edoDist*120+800; // 移動費用を削減
     gs.money=Math.max(0,gs.money-cost);
-    addEvent('info','参勤交代 出府',`参勤交代のため江戸へ出府した。移動費用${fmt(cost)}が発生した。`);
+    addEvent('info','参勤交代 出府',`参勤交代のため江戸へ出府した。移動費用${fmt(cost)}が発生した。半年間の江戸勤番が始まる。`);
   }
   if(gs.sankin.inEdo){
     gs.sankin.edoMonths++;
-    if(gs.sankin.edoMonths>=12){
+    if(gs.sankin.edoMonths>=6){ // 12ヶ月→6ヶ月（半年）に短縮
       gs.sankin.inEdo=false;
-      const cost=gs.dom.edoDist*280+2000;
+      const cost=gs.dom.edoDist*120+800;
       gs.money=Math.max(0,gs.money-cost);
-      gs.sankin.nextSankin=(gs.year*12+gs.month)+12;
+      gs.sankin.nextSankin=(gs.year*12+gs.month)+18; // 次回まで18ヶ月（1.5年後）
       gs.bakufu=clamp(gs.bakufu+3,0,100);
-      addEvent('good','参勤交代 帰国','一年の江戸勤番を終え国許に帰還した。参勤交代の義務を果たし幕府の信頼が増した。');
+      addEvent('good','参勤交代 帰国','半年の江戸勤番を終え国許に帰還した。参勤交代の義務を果たし幕府の信頼が増した。');
     }
   }
 }
@@ -945,7 +960,14 @@ function checkGameOver() {
   }
 }
 
-function addEvent(type,title,text){ gs.events.unshift({type,title,text,year:gs.year,month:gs.month}); if(gs.events.length>50) gs.events.pop(); }
+function addEvent(type,title,text){
+  const ev={type,title,text,year:gs.year,month:gs.month,isNew:true};
+  gs.events.unshift(ev);
+  if(gs.turnEvents) gs.turnEvents.push(ev);
+  if(gs.events.length>50) gs.events.pop();
+  // 1ターン後にisNewを消す
+  setTimeout(()=>{ ev.isNew=false; },100);
+}
 
 // ========================== HELPERS ==========================
 function clamp(v,mn,mx){return Math.min(mx,Math.max(mn,v))}
@@ -968,6 +990,9 @@ function phase(y){
 function renderAll(){
   if(!gs) return;
   renderHeader(); renderLeft(); renderRight(); renderEvents(); renderFinance(); renderPolicies(); renderActions();
+  const blocked=!gs||gs.gameOver||!!pendingChoice;
+  document.getElementById('btn-turn').disabled=blocked;
+  document.getElementById('btn-skip').disabled=blocked;
 }
 
 function renderHeader(){
@@ -1050,13 +1075,21 @@ function renderRight(){
 }
 
 function renderEvents(){
-  document.getElementById('event-log').innerHTML=gs.events.map(e=>`<div class="event-entry ev-${e.type}"><div class="edate">${e.year}年${e.month}月（${era(e.year)}）</div><div class="etitle">${e.title}</div><div class="etext">${e.text}</div></div>`).join('');
+  const cur=gs.year*100+gs.month;
+  document.getElementById('event-log').innerHTML=gs.events.map(e=>{
+    const isThisTurn=(e.year*100+e.month===cur);
+    return `<div class="event-entry ev-${e.type}${isThisTurn?' ev-new':''}">
+      <div class="edate">${isThisTurn?'<span class="badge-now">今月</span>':''} ${e.year}年${e.month}月（${era(e.year)}）</div>
+      <div class="etitle">${e.title}</div>
+      <div class="etext">${e.text}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderFinance(){
   const inc=calcIncome(),exp=calcExpense();
   const base=Math.floor(gs.koku*.4/12),prod=gs.dom.products.length*200,ret=Math.floor(gs.koku*.25/12);
-  const edo=Math.floor(gs.dom.baseKoku*.018/12),sankin=gs.sankin.inEdo?Math.floor(gs.dom.edoDist*280+1500):0,interest=Math.floor(gs.saikai*.015);
+  const edo=Math.floor(gs.dom.baseKoku*.018/12),sankin=gs.sankin.inEdo?Math.floor(gs.dom.edoDist*100+600):0,interest=Math.floor(gs.saikai*.005);
   document.getElementById('finance-detail').innerHTML=`
     <p style="font-size:.75rem;color:var(--ink-light);margin-bottom:.7rem">月次収支の詳細（統治${gs.turns}ヶ月目）</p>
     <h4 style="margin-bottom:.4rem;font-size:.8rem">◆ 収入</h4>
@@ -1068,7 +1101,7 @@ function renderFinance(){
     <div class="frow"><div class="flabel">家臣給与</div><div class="fneg">-${fmt(ret)}</div></div>
     <div class="frow"><div class="flabel">江戸屋敷</div><div class="fneg">-${fmt(edo)}</div></div>
     <div class="frow"><div class="flabel">参勤費用</div><div class="fneg">-${fmt(sankin)}</div></div>
-    <div class="frow"><div class="flabel">大坂利息(1.5%)</div><div class="fneg">-${fmt(interest)}</div></div>
+    <div class="frow"><div class="flabel">大坂利息(0.5%/月)</div><div class="fneg">-${fmt(interest)}</div></div>
     <div class="frow ftotal"><div>合計支出</div><div class="fneg">-${fmt(exp)}</div></div>
     <div style="margin-top:.8rem;padding-top:.5rem;border-top:2px solid var(--border)">
       <div class="frow ftotal"><div>月間収支</div><div class="${inc>=exp?'fpos':'fneg'}">${inc>=exp?'+':''}${fmt(inc-exp)}</div></div>
@@ -1078,13 +1111,25 @@ function renderFinance(){
 }
 
 function renderPolicies(){
+  const baseInc=calcIncome(), baseExp=calcExpense();
   document.getElementById('policy-grid').innerHTML=POLICIES.map(pol=>`
     <div class="prow">
       <div class="pcat">◆ ${pol.label}</div>
       <div class="popts">
-        ${pol.options.map((opt,i)=>`<button class="popt${gs.policies[pol.key]===i?' active':''}" onclick="setPolicy('${pol.key}',${i})">
-          <div>${opt.label}</div><div style="font-size:.65rem;opacity:.8;margin-top:.15rem">${opt.short}</div>
-        </button>`).join('')}
+        ${pol.options.map((opt,i)=>{
+          // 選択した場合の収支変化をプレビュー
+          const oldVal=gs.policies[pol.key];
+          gs.policies[pol.key]=i;
+          const newInc=calcIncome(), newExp=calcExpense();
+          const diff=(newInc-newExp)-(baseInc-baseExp);
+          gs.policies[pol.key]=oldVal;
+          const active=gs.policies[pol.key]===i;
+          const diffStr=diff===0?'':`<span style="color:${diff>0?'var(--green)':'var(--red)'}"> (${diff>0?'+':''}${fmt(diff)})</span>`;
+          return `<button class="popt${active?' active':''}" onclick="setPolicy('${pol.key}',${i})">
+            <div>${opt.label}${!active?diffStr:''}</div>
+            <div style="font-size:.65rem;opacity:.8;margin-top:.15rem">${opt.short}</div>
+          </button>`;
+        }).join('')}
       </div>
     </div>`).join('');
 }
@@ -1092,12 +1137,28 @@ function renderPolicies(){
 function renderActions(){
   document.getElementById('action-grid').innerHTML=SPECIAL_ACTIONS.map(a=>{
     const ok=a.cond(gs);
-    return `<div class="action-card${ok?'':' disabled'}" onclick="${ok?`execAction('${a.id}')`:''}" title="${ok?'':'条件を満たしていません'}">
+    const reason=ok?'':getActionReason(a);
+    return `<div class="action-card${ok?'':' disabled'}" onclick="${ok?`execAction('${a.id}')`:''}" >
       <div class="atitle">${a.icon} ${a.title}</div>
       <div class="adesc">${a.desc}</div>
       <div class="acost">費用: ${a.cost}</div>
+      ${!ok?`<div style="font-size:.65rem;color:var(--red);margin-top:.2rem">⚠ ${reason}</div>`:''}
     </div>`;
   }).join('');
+}
+
+function getActionReason(a){
+  switch(a.id){
+    case 'repay': return gs.saikai===0?'借財なし':gs.money<3000?`藩金が足りない（残${fmt(gs.money)}）`:'';
+    case 'gift': return `藩金が足りない（残${fmt(gs.money)}）`;
+    case 'relief': return `藩金が足りない（残${fmt(gs.money)}）`;
+    case 'adopt': return gs.heir?'世継ぎはすでにいる':gs.money<5000?`藩金が足りない（残${fmt(gs.money)}）`:'';
+    case 'suppress': return gs.military<=30?'軍事力が不足':gs.minshin>=55?'民心がまだ安定している':gs.money<2000?`藩金が足りない（残${fmt(gs.money)}）`:'';
+    case 'monopoly': return '専売令はすでに発令済み';
+    case 'medical': return gs.lord.health>=14?'藩主は健康です':gs.money<1500?`藩金が足りない（残${fmt(gs.money)}）`:'';
+    case 'recruit': return gs.military>=90?'兵力は十分です':gs.money<2000?`藩金が足りない（残${fmt(gs.money)}）`:'';
+    default: return '条件を満たしていません';
+  }
 }
 
 // ========================== ACTIONS ==========================
@@ -1166,7 +1227,20 @@ function startGame(){
 
 document.getElementById('btn-start').addEventListener('click',startGame);
 document.getElementById('btn-turn').addEventListener('click',()=>{if(gs&&!gs.gameOver&&!pendingChoice) processTurn();});
-document.addEventListener('keydown',e=>{if(e.code==='Space'&&gs&&!gs.gameOver&&!pendingChoice){e.preventDefault();processTurn();}});
+document.getElementById('btn-skip').addEventListener('click',()=>{
+  if(!gs||gs.gameOver||pendingChoice) return;
+  // 12ターン（1年）まとめて進める。choiceが出たら止まる
+  for(let i=0;i<12;i++){
+    if(pendingChoice||gs.gameOver) break;
+    processTurn();
+  }
+});
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&gs&&!gs.gameOver&&!pendingChoice){e.preventDefault();processTurn();}
+  if(e.code==='Enter'&&gs&&!gs.gameOver&&!pendingChoice){e.preventDefault();
+    for(let i=0;i<12;i++){if(pendingChoice||gs.gameOver) break; processTurn();}
+  }
+});
 
 initTitle();
 </script>
