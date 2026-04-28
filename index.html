@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>幕藩 ～藩経営シミュレーション～</title>
+<style>
+:root {
+  --paper:#f4ead5;--paper-dark:#e8d8b8;--ink:#1a1008;--ink-light:#3d2b1a;
+  --vermilion:#c0392b;--vermilion-dark:#962d22;--indigo:#1a3a6c;--indigo-light:#2a5298;
+  --gold:#c9a227;--wood:#8b6914;--border:#a08060;
+  --green:#2d6a2d;--red:#8b1a1a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background:var(--ink);color:var(--ink);min-height:100vh}
+
+/* TITLE */
+#title-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:radial-gradient(ellipse at center,#2c1810 0%,#0a0604 100%);color:var(--paper);text-align:center;padding:20px}
+#title-screen h1{font-size:4.5rem;letter-spacing:1rem;color:var(--gold);text-shadow:0 0 30px rgba(201,162,39,.6);margin-bottom:.3rem}
+.subtitle{font-size:1.1rem;color:var(--paper-dark);letter-spacing:.3rem;margin-bottom:2rem}
+.domain-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.8rem;max-width:960px;width:100%;margin-bottom:1.5rem}
+.domain-card{background:rgba(244,234,213,.08);border:1px solid var(--gold);border-radius:4px;padding:.9rem;cursor:pointer;transition:all .2s;text-align:left}
+.domain-card:hover,.domain-card.sel{background:rgba(201,162,39,.2);transform:translateY(-2px);border-color:#e8c040}
+.domain-card h3{font-size:1.2rem;color:var(--gold);margin-bottom:.4rem}
+.domain-card .dinfo{font-size:.82rem;color:var(--paper-dark);line-height:1.8}
+.dtag{display:inline-block;padding:2px 7px;border-radius:2px;font-size:.72rem;margin-right:4px}
+.tag-shinpan{background:var(--vermilion);color:#fff}
+.tag-fudai{background:var(--indigo);color:#fff}
+.tag-tozama{background:var(--green);color:#fff}
+.btn-primary{background:var(--gold);color:var(--ink);border:none;padding:.7rem 2rem;font-size:1rem;font-family:inherit;cursor:pointer;border-radius:3px;transition:all .2s;font-weight:bold;letter-spacing:.1rem}
+.btn-primary:hover{background:#d4ae35}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+
+/* GAME SCREEN */
+#game-screen{display:none;flex-direction:column;min-height:100vh;background:var(--paper)}
+
+/* HEADER */
+#game-header{background:var(--ink);color:var(--paper);padding:.5rem 1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;position:sticky;top:0;z-index:100;border-bottom:2px solid var(--gold)}
+#game-header .gtitle{font-size:1.2rem;color:var(--gold);font-weight:bold;white-space:nowrap}
+#game-header .gdate{font-size:.85rem;color:var(--paper-dark);white-space:nowrap}
+.hstat{display:flex;flex-direction:column;align-items:center;font-size:.72rem}
+.hstat .hl{color:var(--paper-dark)}
+.hstat .hv{color:#fff;font-weight:bold;font-size:.82rem}
+.hspacer{flex:1}
+.phase-badge{display:inline-block;padding:2px 10px;border-radius:3px;font-size:.72rem;font-weight:bold}
+.phase-s{background:var(--indigo);color:#fff}
+.phase-a{background:var(--green);color:#fff}
+.phase-k{background:var(--gold);color:var(--ink)}
+.phase-b{background:var(--vermilion);color:#fff}
+#btn-turn{background:var(--vermilion);color:#fff;border:none;padding:.45rem 1.1rem;font-size:.85rem;font-family:inherit;cursor:pointer;border-radius:3px;transition:all .2s;white-space:nowrap;font-weight:bold}
+#btn-turn:hover{background:var(--vermilion-dark)}
+#btn-turn:disabled{opacity:.5;cursor:not-allowed}
+
+/* MAIN GRID */
+#game-main{display:grid;grid-template-columns:250px 1fr 270px;flex:1}
+
+/* PANELS */
+.panel{padding:.9rem;border-right:1px solid var(--border);overflow-y:auto;max-height:calc(100vh - 52px)}
+.panel-left{background:#f0e4c8}
+.panel-center{background:var(--paper)}
+.panel-right{background:#f0e4c8;border-right:none}
+.psec{margin-bottom:1rem}
+.psec h4{font-size:.8rem;color:var(--ink-light);border-bottom:1px solid var(--border);padding-bottom:.25rem;margin-bottom:.5rem}
+
+/* STAT BARS */
+.srow{display:flex;align-items:center;margin-bottom:.4rem;gap:.4rem}
+.slabel{font-size:.75rem;width:65px;flex-shrink:0;color:var(--ink-light)}
+.sbar-wrap{flex:1;height:9px;background:#d0c0a0;border-radius:5px;overflow:hidden}
+.sbar{height:100%;border-radius:5px;transition:width .4s}
+.bg{background:var(--green)}.bb{background:var(--indigo-light)}.br{background:var(--red)}.bgold{background:var(--gold)}.bp{background:#6a2d8b}
+.sval{font-size:.75rem;width:30px;text-align:right;font-weight:bold}
+
+/* ABILITY GRID */
+.agrid{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+.aitem{background:rgba(26,16,8,.05);border:1px solid var(--border);border-radius:3px;padding:.25rem .45rem;font-size:.75rem}
+.aitem .al{color:var(--ink-light);font-size:.68rem}
+.aitem .av{font-weight:bold}
+
+/* TRAITS */
+.tlist{display:flex;flex-wrap:wrap;gap:.25rem}
+.tchip{padding:2px 7px;border-radius:10px;font-size:.68rem;background:var(--paper-dark);border:1px solid var(--border);color:var(--ink)}
+.tp{border-color:var(--green);color:var(--green)}.tn{border-color:var(--red);color:var(--red)}.tnu{border-color:var(--gold);color:var(--wood)}
+
+/* EVENTS */
+#event-log{max-height:calc(100vh - 200px);overflow-y:auto}
+.event-entry{padding:.6rem;margin-bottom:.5rem;border-left:3px solid var(--border);background:rgba(255,255,255,.5);border-radius:0 4px 4px 0;font-size:.82rem;line-height:1.6;animation:fi .3s ease}
+@keyframes fi{from{opacity:0;transform:translateX(-4px)}to{opacity:1}}
+.ev-critical{border-color:var(--vermilion);background:rgba(192,57,43,.1)}
+.ev-good{border-color:var(--green);background:rgba(45,106,45,.08)}
+.ev-bad{border-color:var(--red);background:rgba(139,26,26,.08)}
+.ev-info{border-color:var(--indigo-light);background:rgba(42,82,152,.07)}
+.ev-history{border-color:var(--gold);background:rgba(201,162,39,.08)}
+.edate{font-size:.68rem;color:var(--ink-light);margin-bottom:.15rem}
+.etitle{font-weight:bold;margin-bottom:.15rem}
+.etext{color:var(--ink-light)}
+
+/* FINANCE ROWS */
+.frow{display:flex;justify-content:space-between;font-size:.78rem;padding:.18rem 0;border-bottom:1px dotted var(--border)}
+.flabel{color:var(--ink-light)}
+.fpos{color:var(--green);font-weight:bold}
+.fneg{color:var(--red);font-weight:bold}
+.ftotal{font-weight:bold;color:var(--ink);font-size:.85rem}
+
+/* FACTION */
+.fbar{height:18px;border-radius:3px;overflow:hidden;display:flex;margin-bottom:.25rem}
+.fmon{background:var(--vermilion);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.68rem;font-weight:bold;transition:width .4s;min-width:30px}
+.fjit{background:var(--indigo-light);flex:1;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.68rem;font-weight:bold}
+
+/* POLICIES */
+.policy-grid{display:flex;flex-direction:column;gap:.45rem}
+.prow{background:rgba(255,255,255,.5);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.pcat{background:var(--ink);color:var(--gold);padding:.25rem .6rem;font-size:.75rem}
+.popts{display:flex}
+.popt{flex:1;padding:.35rem .45rem;cursor:pointer;font-size:.73rem;text-align:center;border:none;background:transparent;font-family:inherit;transition:all .15s;color:var(--ink);border-right:1px solid var(--border)}
+.popt:last-child{border-right:none}
+.popt:hover{background:rgba(201,162,39,.2)}
+.popt.active{background:var(--gold);color:var(--ink);font-weight:bold}
+
+/* SPECIAL ACTIONS */
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.action-card{background:rgba(255,255,255,.6);border:1px solid var(--border);border-radius:5px;padding:.6rem;cursor:pointer;transition:all .15s;text-align:left}
+.action-card:hover:not(.disabled){background:rgba(201,162,39,.15);border-color:var(--gold);transform:translateY(-1px)}
+.action-card.disabled{opacity:.45;cursor:not-allowed}
+.action-card .atitle{font-size:.8rem;font-weight:bold;margin-bottom:.2rem;color:var(--ink)}
+.action-card .adesc{font-size:.68rem;color:var(--ink-light);line-height:1.5;margin-bottom:.3rem}
+.action-card .acost{font-size:.7rem;font-weight:bold;color:var(--vermilion)}
+
+/* TABS */
+.tab-bar{display:flex;border-bottom:2px solid var(--border);margin-bottom:.8rem;flex-wrap:wrap}
+.tbtn{padding:.35rem .7rem;border:none;background:transparent;font-family:inherit;font-size:.78rem;cursor:pointer;color:var(--ink-light);border-bottom:2px solid transparent;margin-bottom:-2px}
+.tbtn.active{color:var(--vermilion);border-bottom-color:var(--vermilion);font-weight:bold}
+.tcontent{display:none}
+.tcontent.active{display:block}
+
+/* SANKIN BADGES */
+.sbadge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:.72rem;font-weight:bold}
+.sb-edo{background:var(--vermilion);color:#fff}
+.sb-kuni{background:var(--green);color:#fff}
+
+/* PRODUCT CHIPS */
+.pchip{padding:2px 7px;background:var(--paper-dark);border:1px solid var(--border);border-radius:3px;font-size:.72rem;color:var(--ink)}
+
+/* LORD PORTRAIT */
+.lport{width:72px;height:72px;border-radius:50%;margin:0 auto .4rem;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:2.2rem;background:var(--paper-dark)}
+
+/* GAME OVER MODAL */
+#go-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center}
+.modal-box{background:var(--paper);border:3px solid var(--gold);border-radius:8px;padding:2rem;max-width:480px;width:90%;text-align:center}
+.modal-box h2{font-size:1.8rem;color:var(--vermilion);margin-bottom:1rem}
+.modal-box p{margin-bottom:.5rem;font-size:.88rem;line-height:1.8}
+
+/* CHOICE MODAL */
+#choice-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:900;align-items:center;justify-content:center}
+.choice-box{background:var(--paper);border:3px solid var(--vermilion);border-radius:8px;padding:1.8rem;max-width:520px;width:92%;text-align:center}
+.choice-box h3{font-size:1.2rem;color:var(--vermilion);margin-bottom:.8rem}
+.choice-box .ctext{font-size:.85rem;color:var(--ink-light);line-height:1.7;margin-bottom:1.2rem;text-align:left;background:rgba(255,255,255,.6);padding:.7rem;border-radius:4px;border-left:3px solid var(--gold)}
+.choice-list{display:flex;flex-direction:column;gap:.5rem;text-align:left}
+.choice-btn{background:rgba(255,255,255,.7);border:1px solid var(--border);border-radius:5px;padding:.65rem .9rem;cursor:pointer;transition:all .15s;font-family:inherit;text-align:left;width:100%}
+.choice-btn:hover{background:rgba(201,162,39,.2);border-color:var(--gold)}
+.choice-btn .clabel{font-size:.85rem;font-weight:bold;color:var(--ink);margin-bottom:.2rem}
+.choice-btn .ceffect{font-size:.72rem;color:var(--ink-light)}
+.choice-btn.c-danger{border-color:var(--red)}
+.choice-btn.c-danger:hover{background:rgba(139,26,26,.1)}
+.choice-btn.c-good{border-color:var(--green)}
+.choice-btn.c-good:hover{background:rgba(45,106,45,.1)}
+
+/* NOTIF */
+.notif{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:.5rem 1.3rem;border-radius:20px;font-size:.82rem;z-index:500;border:1px solid var(--gold);white-space:nowrap;animation:npi .3s ease,nfo .5s ease 2.3s forwards}
+@keyframes npi{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
+@keyframes nfo{to{opacity:0}}
+
+/* YEAR PROGRESS */
+.year-progress{height:3px;background:rgba(201,162,39,.2);position:relative;overflow:hidden}
+.year-progress-bar{height:100%;background:var(--gold);transition:width .5s}
+
+/* TOBAKU/SABAKU BAR */
+.tobaku-wrap{height:16px;border-radius:3px;overflow:hidden;display:flex;margin:.4rem 0}
+.tobaku-sabaku-seg{background:var(--indigo-light);transition:width .4s;display:flex;align-items:center;justify-content:flex-start;padding-left:4px;color:#fff;font-size:.62rem;font-weight:bold}
+.tobaku-tobaku-seg{background:var(--vermilion);flex:1;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;color:#fff;font-size:.62rem;font-weight:bold}
+.tobaku-labels{display:flex;justify-content:space-between;font-size:.65rem;color:var(--ink-light);margin-bottom:.2rem}
+
+/* TREND ARROWS */
+.trend-up{color:var(--green);font-size:.7rem}
+.trend-dn{color:var(--red);font-size:.7rem}
+.trend-eq{color:var(--border);font-size:.7rem}
+
+/* SUMMARY SCREEN */
+#summary-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:1100;align-items:center;justify-content:center;overflow-y:auto}
+.summary-box{background:var(--paper);border:3px solid var(--gold);border-radius:8px;padding:2rem;max-width:560px;width:94%;margin:auto}
+.summary-box h2{font-size:1.6rem;color:var(--gold);text-align:center;margin-bottom:1.2rem}
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:1rem}
+.summary-item{background:rgba(255,255,255,.6);border:1px solid var(--border);border-radius:4px;padding:.5rem .7rem;font-size:.8rem}
+.summary-item .sl{color:var(--ink-light);font-size:.68rem}
+.summary-item .sv{font-weight:bold;font-size:1rem}
+.summary-achiev{margin-top:.8rem}
+.summary-achiev h4{font-size:.82rem;border-bottom:1px solid var(--border);padding-bottom:.2rem;margin-bottom:.5rem}
+.achiev-chip{display:inline-block;padding:3px 9px;border-radius:10px;font-size:.72rem;margin:.15rem;background:var(--gold);color:var(--ink);font-weight:bold}
+.achiev-chip.bad{background:var(--red);color:#fff}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--paper-dark)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+@media(max-width:860px){
+  #game-main{grid-template-columns:1fr}
+  .panel{border-right:none;border-bottom:1px solid var(--border);max-height:none}
+  .action-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- TITLE SCREEN -->
+<div id="title-screen">
+  <h1>幕藩</h1>
+  <div class="subtitle">〜 藩経営シミュレーション 〜</div>
+  <p style="margin-bottom:1.5rem;color:#a09080;font-size:.85rem">1603年（慶長8年）、徳川幕府の礎が築かれる。汝は何藩の主となるや？</p>
+  <div class="domain-grid" id="domain-grid"></div>
+  <button class="btn-primary" id="btn-start" disabled>開 幕</button>
+  <p style="margin-top:.8rem;font-size:.72rem;color:#706050">藩を選択してください ／ Spaceキーでターン進行</p>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="game-screen">
+  <div id="game-header">
+    <div class="gtitle">幕藩</div>
+    <div class="gdate" id="h-date">-</div>
+    <div class="hstat"><div class="hl">石高</div><div class="hv" id="h-koku">-</div></div>
+    <div class="hstat"><div class="hl">藩金</div><div class="hv" id="h-money">-</div></div>
+    <div class="hstat"><div class="hl">民心</div><div class="hv" id="h-minshin">-</div></div>
+    <div class="hstat"><div class="hl">借財</div><div class="hv" id="h-saikai">-</div></div>
+    <div class="hstat"><div class="hl">幕府</div><div class="hv" id="h-bakufu">-</div></div>
+    <div class="hspacer"></div>
+    <span id="h-phase" class="phase-badge phase-s">確立期</span>
+    <button id="btn-turn">次の月へ →</button>
+  </div>
+  <div class="year-progress"><div class="year-progress-bar" id="year-bar"></div></div>
+
+  <div id="game-main">
+    <!-- LEFT: Lord & Domain -->
+    <div class="panel panel-left">
+      <div class="psec">
+        <div class="lport" id="lord-portrait">👤</div>
+        <div style="text-align:center">
+          <div style="font-size:1.05rem;font-weight:bold" id="lord-name">-</div>
+          <div style="font-size:.75rem;color:var(--ink-light)" id="lord-age">-</div>
+          <div style="margin-top:.3rem" id="lord-sankin"></div>
+        </div>
+      </div>
+      <div class="psec">
+        <h4>◆ 五大能力</h4>
+        <div class="agrid" id="ability-grid"></div>
+      </div>
+      <div class="psec">
+        <h4>◆ 性格・好み</h4>
+        <div class="tlist" id="trait-list"></div>
+      </div>
+      <div class="psec">
+        <h4>◆ 藩情報</h4>
+        <div id="domain-info"></div>
+      </div>
+      <div class="psec">
+        <h4>◆ 特産品</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:.25rem" id="product-list"></div>
+      </div>
+      <div class="psec">
+        <h4>◆ 家臣団勢力</h4>
+        <div class="fbar">
+          <div class="fmon" id="fac-mon">門閥派</div>
+          <div class="fjit" id="fac-jit">実力派</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--ink-light)">
+          <span>門閥派: <span id="fac-mv">-</span></span>
+          <span>実力派: <span id="fac-jv">-</span></span>
+        </div>
+      </div>
+      <div class="psec">
+        <h4>◆ 世継ぎ</h4>
+        <div id="heir-info" style="font-size:.78rem"></div>
+      </div>
+    </div>
+
+    <!-- CENTER: Events / Policies / Actions / Finance -->
+    <div class="panel panel-center">
+      <div class="tab-bar">
+        <button class="tbtn active" onclick="switchTab('events',this)">情勢・出来事</button>
+        <button class="tbtn" onclick="switchTab('policy',this)">政策方針</button>
+        <button class="tbtn" onclick="switchTab('actions',this)">特別施策</button>
+        <button class="tbtn" onclick="switchTab('finance',this)">財政詳細</button>
+      </div>
+      <div id="tab-events" class="tcontent active">
+        <div id="event-log"></div>
+      </div>
+      <div id="tab-policy" class="tcontent">
+        <p style="font-size:.78rem;color:var(--ink-light);margin-bottom:.8rem">方針を選択すると翌月から効果が発動します。</p>
+        <div class="policy-grid" id="policy-grid"></div>
+      </div>
+      <div id="tab-actions" class="tcontent">
+        <p style="font-size:.78rem;color:var(--ink-light);margin-bottom:.8rem">藩主の決断として実施できる特別な施策です。費用と効果を確認して実行してください。</p>
+        <div class="action-grid" id="action-grid"></div>
+      </div>
+      <div id="tab-finance" class="tcontent">
+        <div id="finance-detail"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Stats & Summary -->
+    <div class="panel panel-right">
+      <div class="psec">
+        <h4>◆ 重要指標</h4>
+        <div class="srow"><div class="slabel">民心</div><div class="sbar-wrap"><div class="sbar bg" id="bar-minshin"></div></div><div class="sval" id="val-minshin">-</div></div>
+        <div class="srow"><div class="slabel">威信</div><div class="sbar-wrap"><div class="sbar bgold" id="bar-prestige"></div></div><div class="sval" id="val-prestige">-</div></div>
+        <div class="srow"><div class="slabel">幕府心象</div><div class="sbar-wrap"><div class="sbar bb" id="bar-bakufu"></div></div><div class="sval" id="val-bakufu">-</div></div>
+        <div class="srow"><div class="slabel">蘭学</div><div class="sbar-wrap"><div class="sbar bp" id="bar-rankaku"></div></div><div class="sval" id="val-rankaku">-</div></div>
+        <div class="srow"><div class="slabel">軍事力</div><div class="sbar-wrap"><div class="sbar br" id="bar-military"></div></div><div class="sval" id="val-military">-</div></div>
+      </div>
+      <div class="psec">
+        <h4>◆ 財政概要</h4>
+        <div class="frow"><div class="flabel">月収入</div><div class="fpos" id="f-income">-</div></div>
+        <div class="frow"><div class="flabel">月支出</div><div class="fneg" id="f-expense">-</div></div>
+        <div class="frow"><div class="flabel">月収支</div><div id="f-balance">-</div></div>
+        <div class="frow" style="border:none"><div class="flabel">大坂借財</div><div class="fneg" id="f-saikai">-</div></div>
+      </div>
+      <div class="psec">
+        <h4>◆ 現行方針</h4>
+        <div id="cur-policies" style="font-size:.75rem"></div>
+      </div>
+      <div class="psec">
+        <h4>◆ 幕府関係</h4>
+        <div id="bakufu-status" style="font-size:.78rem"></div>
+      </div>
+      <div class="psec" id="tobaku-section" style="display:none">
+        <h4>◆ 幕末の潮流</h4>
+        <div class="tobaku-labels"><span>佐幕派</span><span>倒幕派</span></div>
+        <div class="tobaku-wrap">
+          <div class="tobaku-sabaku-seg" id="tobaku-sabaku-bar">佐幕</div>
+          <div class="tobaku-tobaku-seg" id="tobaku-tobaku-bar">倒幕</div>
+        </div>
+        <div style="font-size:.7rem;color:var(--ink-light);text-align:center" id="tobaku-label">-</div>
+      </div>
+      <div class="psec">
+        <h4>◆ 警告</h4>
+        <div id="warnings" style="font-size:.75rem"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUMMARY MODAL -->
+<div id="summary-modal">
+  <div class="summary-box">
+    <div style="text-align:center;font-size:2rem;margin-bottom:.3rem" id="sum-icon">📜</div>
+    <h2 id="sum-title">統治の記録</h2>
+    <p id="sum-desc" style="text-align:center;font-size:.85rem;color:var(--ink-light);margin-bottom:1rem;line-height:1.7"></p>
+    <div class="summary-grid" id="sum-grid"></div>
+    <div class="summary-achiev">
+      <h4>◆ 功績・記録</h4>
+      <div id="sum-achievs"></div>
+    </div>
+    <div style="text-align:center;margin-top:1.2rem">
+      <button class="btn-primary" onclick="location.reload()">最初から</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHOICE MODAL -->
+<div id="choice-modal">
+  <div class="choice-box">
+    <h3 id="cm-title">決断を迫られる</h3>
+    <div class="ctext" id="cm-text">-</div>
+    <div class="choice-list" id="cm-choices"></div>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="go-modal">
+  <div class="modal-box">
+    <div style="font-size:2.5rem;margin-bottom:.5rem" id="go-icon">⚔️</div>
+    <h2 id="go-title">御家断絶</h2>
+    <p id="go-reason">-</p>
+    <p id="go-stats" style="color:var(--ink-light);margin-top:.5rem;font-size:.82rem"></p>
+    <br>
+    <button class="btn-primary" onclick="location.reload()">最初から</button>
+  </div>
+</div>
+
+<script>
+// ========================== DATA ==========================
+
+const DOMAINS = [
+  { id:'satsuma', name:'薩摩藩', mon:'🌿', region:'九州', type:'tozama', typeLabel:'外様',
+    baseKoku:770000, products:['米','砂糖','塩'], startMoney:6000, startSaikai:80000,
+    startMinshin:65, startBakufu:35, startPrestige:60, edoDist:18,
+    desc:'石高77万石の大藩。幕府の警戒は強いが財力は大きい。' },
+  { id:'kaga', name:'加賀藩', mon:'🌸', region:'北陸', type:'tozama', typeLabel:'外様',
+    baseKoku:1020000, products:['米','絹','漆'], startMoney:9000, startSaikai:130000,
+    startMinshin:70, startBakufu:30, startPrestige:70, edoDist:12,
+    desc:'加賀百万石と称される外様最大の雄藩。文化芸術も盛ん。' },
+  { id:'sendai', name:'仙台藩', mon:'🌊', region:'東北', type:'tozama', typeLabel:'外様',
+    baseKoku:625000, products:['米','木材','馬'], startMoney:4500, startSaikai:60000,
+    startMinshin:68, startBakufu:40, startPrestige:55, edoDist:15,
+    desc:'伊達家62万石。東北の雄だが幕府から常に監視されている。' },
+  { id:'mito', name:'水戸藩', mon:'📜', region:'関東', type:'shinpan', typeLabel:'親藩',
+    baseKoku:350000, products:['米','醤油','納豆'], startMoney:3500, startSaikai:28000,
+    startMinshin:65, startBakufu:75, startPrestige:65, edoDist:3,
+    desc:'徳川御三家の一つ。尊王思想が強く幕末に大きな影響を持つ。' },
+  { id:'hikone', name:'彦根藩', mon:'⚔️', region:'近畿', type:'fudai', typeLabel:'譜代',
+    baseKoku:350000, products:['米','麻','陶磁器'], startMoney:4500, startSaikai:22000,
+    startMinshin:70, startBakufu:82, startPrestige:70, edoDist:5,
+    desc:'井伊家35万石の有力譜代。幕府の中枢を担う機会が多い。' },
+  { id:'tosa', name:'土佐藩', mon:'🐋', region:'四国', type:'tozama', typeLabel:'外様',
+    baseKoku:202000, products:['米','紙','鰹節'], startMoney:2500, startSaikai:18000,
+    startMinshin:62, startBakufu:45, startPrestige:45, edoDist:14,
+    desc:'山内家20万石。幕末に坂本龍馬を生んだ雄藩。' },
+];
+
+const POLICIES = [
+  { key:'finance', label:'財政方針', options:[
+    { label:'緊縮財政', short:'支出削減。借財返済促進。民心微減。', ef:{ expMod:-.10, minshinD:-.5, saikaiD:-.01 } },
+    { label:'重商主義', short:'特産品収益増。収入+15%。民心微増。', ef:{ incMod:.15, minshinD:.5 } }
+  ]},
+  { key:'military', label:'軍事方針', options:[
+    { label:'軍役維持', short:'幕府義務を遵守。心象上昇。支出+8%。', ef:{ expMod:.08, bakufuD:.5, milD:.3 } },
+    { label:'富国強兵', short:'軍事強化。幕府の警戒が増す。', ef:{ expMod:.15, bakufuD:-1.0, milD:1.5 } }
+  ]},
+  { key:'domestic', label:'内政方針', options:[
+    { label:'新田開発', short:'石高の長期的上昇。支出+5%。', ef:{ kokuGrowth:.001, expMod:.05 } },
+    { label:'治水重点', short:'洪水リスク軽減。民心安定。', ef:{ disasterMod:-.5, minshinD:.3, expMod:.04 } }
+  ]},
+  { key:'education', label:'教育方針', options:[
+    { label:'藩校設立', short:'威信向上。家臣底上げ。支出+6%。', ef:{ expMod:.06, prestigeD:.3 } },
+    { label:'蘭学保護', short:'蘭学急速向上。保守派の不満増。', ef:{ rankakuD:1.8, monbatsuD:-.5, expMod:.05 } }
+  ]},
+  { key:'shogunate', label:'対幕府工作', options:[
+    { label:'献辞工作', short:'幕府関係改善。支出+12%。', ef:{ expMod:.12, bakufuD:1.5, prestigeD:.5 } },
+    { label:'面従腹背', short:'最低限の義務のみ。収入+5%。', ef:{ incMod:.05, bakufuD:-.5 } }
+  ]},
+];
+
+// Historical events — some have 'choices' for interactive decisions
+const HIST_EVENTS = [
+  { year:1603, month:3, title:'征夷大将軍宣下', text:'徳川家康が征夷大将軍に任命された。幕藩体制が正式に始まる。', type:'history', ef:{ bakufuD:2 } },
+  { year:1615, month:7, title:'武家諸法度制定', text:'大阪夏の陣後、武家諸法度が制定された。大名への統制が強化される。', type:'history', ef:{ bakufuD:-1 } },
+  { year:1635, month:6, title:'参勤交代の制度化', text:'武家諸法度改定により参勤交代が義務化された。大名財政への負担が増す。', type:'bad', ef:{ moneyD:-500 } },
+  { year:1657, month:3, title:'明暦の大火', text:'江戸の大半が焼失した。江戸屋敷の再建費用が急遽発生する。', type:'bad', ef:{ moneyD:-2000 } },
+  { year:1688, month:1, title:'元禄時代の到来', text:'元禄文化が花開き経済も繁栄する。しかし奢侈の風潮も広まっている。', type:'good', ef:{ minshinD:5, prestigeD:5 } },
+  { year:1703, month:1, title:'赤穂浪士討ち入り', text:'大石内蔵助ら赤穂浪士が吉良邸に討ち入った。世間が騒然としている。', type:'history', ef:{ prestigeD:2 } },
+  { year:1707, month:12, title:'富士山噴火（宝永）', text:'富士山が大噴火した。火山灰が広範囲を覆い農作物に甚大な被害が出ている。', type:'bad', ef:{ kokuMod:-.05, minshinD:-5 } },
+  { year:1783, month:8, title:'天明の飢饉', text:'浅間山噴火による冷害で未曾有の大飢饉が発生した。', type:'critical', ef:{ minshinD:-15, kokuMod:-.08 },
+    choices:[
+      { label:'年貢を大幅に減免する', cls:'c-good', effect:'領民の苦しみを和らげた。財政は苦しいが民心が回復する。', ef:{ minshinD:12, moneyD:-3000 } },
+      { label:'年貢は維持し財政を守る', cls:'c-danger', effect:'財政は守られたが、領民の怨嗟の声が高まった。', ef:{ minshinD:-8 } },
+      { label:'幕府に救済を要請する', cls:'', effect:'幕府から援助物資が届いた。関係もわずかに改善した。', ef:{ minshinD:5, bakufuD:3, moneyD:-500 } },
+    ]
+  },
+  { year:1787, month:1, title:'寛政の改革', text:'老中・松平定信が寛政の改革を開始。各藩にも倹約と風紀粛正が求められる。', type:'history', ef:{ minshinD:-2 },
+    choices:[
+      { label:'改革の方針に従う', cls:'c-good', effect:'幕府の評価が上がった。しかし藩内の自由な空気が失われた。', ef:{ bakufuD:5, minshinD:-3 } },
+      { label:'形式だけ従い実態は変えない', cls:'', effect:'表向きは従いながら藩政の実権を保った。', ef:{ bakufuD:1 } },
+    ]
+  },
+  { year:1833, month:1, title:'天保の飢饉', text:'天保の大飢饉が始まった。農村が壊滅的な打撃を受けている。', type:'critical', ef:{ minshinD:-18, kokuMod:-.10 },
+    choices:[
+      { label:'藩の蔵を開き救済する', cls:'c-good', effect:'蔵米を放出し領民を救った。財政は痛手だが民心が保たれた。', ef:{ minshinD:15, moneyD:-4000 } },
+      { label:'倉から売り出し価格を抑制する', cls:'', effect:'価格統制で混乱を防いだ。効果は限定的だが財政は保てた。', ef:{ minshinD:5, moneyD:-1500 } },
+      { label:'他藩からの廉価買い入れを試みる', cls:'', effect:'交渉により食料を確保したが、時間がかかった。', ef:{ minshinD:3, prestigeD:-2, moneyD:-2000 } },
+    ]
+  },
+  { year:1837, month:2, title:'大塩平八郎の乱', text:'元大坂町奉行所与力・大塩平八郎が乱を起こした。一揆の機運が各地で高まっている。', type:'bad', ef:{ minshinD:-5 } },
+  { year:1853, month:7, title:'ペリー来航！', text:'米国東インド艦隊司令官ペリーが黒船4隻を率いて浦賀に来航した！幕府は対応に苦慮し、各藩に意見書の提出を求めてきた。', type:'critical', ef:{ bakufuD:-3, minshinD:-3 },
+    choices:[
+      { label:'開国論を上申する', cls:'c-good', effect:'開国を支持する意見を幕府に提出した。蘭学派に評価されたが攘夷派は激怒した。', ef:{ rankakuD:8, bakufuD:3, minshinD:-5 } },
+      { label:'攘夷論を上申する', cls:'c-danger', effect:'攘夷を強く主張した。民心は盛り上がったが、開国の波は止まらない。', ef:{ minshinD:5, military:5, bakufuD:-5 } },
+      { label:'慎重論を述べ静観する', cls:'', effect:'中立的な立場を取り様子を見た。', ef:{ bakufuD:1 } },
+    ]
+  },
+  { year:1858, month:6, title:'日米修好通商条約', text:'大老・井伊直弼が朝廷の勅許なく日米修好通商条約に調印した。不平等条約への不満が国内に渦巻いている。', type:'history', ef:{ bakufuD:-8, minshinD:-3 },
+    choices:[
+      { label:'条約を受け入れ貿易に乗り出す', cls:'c-good', effect:'貿易で利益を得た。蘭学が急速に広まる。', ef:{ moneyD:3000, rankakuD:10, minshinD:-3 } },
+      { label:'幕府批判の声を上げる', cls:'c-danger', effect:'尊王攘夷派に評価されたが幕府との関係が悪化した。', ef:{ bakufuD:-10, prestigeD:5, minshinD:5 } },
+      { label:'静観する', cls:'', effect:'動かず情勢を見守った。', ef:{} },
+    ]
+  },
+  { year:1863, month:5, title:'攘夷実行令', text:'孝明天皇が攘夷実行を勅命した。幕府は困惑し、各藩に方針表明を求めている。', type:'critical', ef:{ bakufuD:-5 },
+    choices:[
+      { label:'攘夷を実行する', cls:'c-danger', effect:'外国船に発砲した。列強との緊張が高まり報復の恐れがある。', ef:{ military:-10, minshinD:5, bakufuD:-8, rankakuD:-5 } },
+      { label:'開国路線を維持する', cls:'c-good', effect:'攘夷令を事実上無視した。幕府との関係が悪化するが列強との衝突は避けた。', ef:{ bakufuD:-12, rankakuD:5, moneyD:1000 } },
+      { label:'形式的に攘夷を宣言し実行しない', cls:'', effect:'外交的に曖昧な態度を取った。', ef:{ bakufuD:-3, minshinD:2 } },
+    ]
+  },
+  { year:1867, month:12, title:'大政奉還', text:'徳川慶喜が大政奉還を宣言。江戸幕府が終わりを告げようとしている。新政府か旧幕府か、最後の選択を迫られる。', type:'critical', ef:{ bakufuD:-20 },
+    choices:[
+      { label:'新政府（朝廷）に恭順する', cls:'c-good', effect:'新政府への協力を表明した。明治維新の中で藩の存続を図る。', ef:{ bakufuD:20, prestigeD:10 } },
+      { label:'旧幕府方を支持する', cls:'c-danger', effect:'旧幕府方に与した。戊辰戦争の戦禍に飲み込まれる危険がある。', ef:{ bakufuD:-30, military:10, minshinD:-10 } },
+    ]
+  },
+];
+
+// Random events — some have 'choices'
+const RND_EVENTS = [
+  { id:'harvest', title:'豊作', text:'天候に恵まれ例年より豊かな収穫があった。', type:'good', w:14, ef:{ moneyD:1800, minshinD:6 } },
+  { id:'trade', title:'商取引の繁盛', text:'特産品が大坂市場で高値をつけた。', type:'good', w:11, ef:{ moneyD:1200 } },
+  { id:'retainer', title:'有能な家臣の活躍', text:'有能な家臣が藩政を助け内政効率が上昇した。', type:'good', w:9, ef:{ minshinD:4, prestigeD:2 } },
+  { id:'diplomacy', title:'他藩との縁組', text:'近隣の藩との縁組交渉が成立した。', type:'good', w:7, ef:{ prestigeD:5, bakufuD:2 } },
+  { id:'tech', title:'農法の改善', text:'新しい農業技術が普及し生産性が向上した。', type:'good', w:7, ef:{ kokuMod:.015, minshinD:2 } },
+  { id:'sankin_inspect', title:'幕府巡察使来藩', text:'幕府の巡察使が視察に来た。特に問題は指摘されなかった。', type:'info', w:9, ef:{ bakufuD:1 } },
+  { id:'fire', title:'村落の火災', text:'領内で大規模な火災が発生した。', type:'bad', w:8, ef:{ moneyD:-700, minshinD:-3 } },
+  { id:'flood', title:'洪水', text:'大雨で河川が氾濫し農地が浸水した。', type:'bad', w:11, ef:{ moneyD:-1200, kokuMod:-.03, minshinD:-5 } },
+  { id:'drought', title:'旱魃', text:'干ばつにより作物の育ちが悪い。', type:'bad', w:9, ef:{ moneyD:-900, kokuMod:-.02, minshinD:-4 } },
+  { id:'epidemic', title:'疫病の流行', text:'疫病が流行し多くの農民が倒れた。', type:'bad', w:8, ef:{ minshinD:-9, moneyD:-600 } },
+  { id:'conflict', title:'家臣間の対立', text:'家臣同士の抗争が表面化し藩政に混乱が生じた。', type:'bad', w:7, ef:{ minshinD:-3, prestigeD:-4 } },
+  { id:'fusin', title:'幕府普請命令', text:'幕府から公共事業への参加を命じられた。', type:'bad', w:9, ef:{ moneyD:-2200, bakufuD:3 },
+    choices:[
+      { label:'快く応じる', cls:'c-good', effect:'幕府への忠誠を示した。費用はかかったが心象が上がった。', ef:{ moneyD:-1000, bakufuD:5 } },
+      { label:'減免を交渉する', cls:'', effect:'費用の削減に成功した。幕府の評価はやや下がった。', ef:{ moneyD:1000, bakufuD:-2 } },
+    ]
+  },
+  { id:'ikki', title:'百姓一揆の勃発', text:'年貢への不満が爆発し、領内で一揆が起きた！早急な対応が求められる。', type:'critical', w:9, cond:g=>g.minshin<40, ef:{ minshinD:-5 },
+    choices:[
+      { label:'武力で鎮圧する', cls:'c-danger', effect:'軍を出動させ鎮圧した。一揆は収まったが民心の傷は深い。', ef:{ minshinD:-8, moneyD:-1500, military:-3 } },
+      { label:'要求を聞き年貢を減免する', cls:'c-good', effect:'要求を受け入れ年貢を減免した。民心が回復するが財政は悪化する。', ef:{ minshinD:15, moneyD:-3000 } },
+      { label:'幕府に報告し指示を仰ぐ', cls:'', effect:'幕府の判断を仰いだ。遅延したが幕府の支援を得た。', ef:{ minshinD:-3, bakufuD:2, moneyD:-500 } },
+    ]
+  },
+  { id:'earthquake', title:'大地震', text:'大地震が発生し領内の建物に被害が出た。', type:'bad', w:5, ef:{ moneyD:-1800, minshinD:-7 } },
+  { id:'lord_sick', title:'殿様の体調不良', text:'藩主が体調を崩した。しばらく静養が必要だ。', type:'bad', w:5, ef:{ prestigeD:-3 }, lordHpD:-2 },
+  { id:'heir', title:'世継ぎ誕生', text:'世継ぎが誕生した！藩内が喜びで満ちている。', type:'good', w:6, cond:g=>!g.heir, ef:{ minshinD:8, prestigeD:10 }, special:'heir' },
+  { id:'spy', title:'他藩の内情', text:'間者の報告によれば近隣の藩で内紛が起きているという。', type:'info', w:6, ef:{ prestigeD:2 } },
+  { id:'merchant_loan', title:'大坂商人の申し出', text:'大坂の豪商が融資を申し出てきた。', type:'info', w:7, ef:{},
+    choices:[
+      { label:'借り入れる（+5000両、借財増）', cls:'c-danger', effect:'資金を調達したが借財が増えた。', ef:{ moneyD:5000, saikaiD:8000 } },
+      { label:'断る', cls:'c-good', effect:'借財を増やさず済んだ。', ef:{} },
+    ]
+  },
+  { id:'talented_samurai', title:'浪人の登用願い', text:'有能な浪人が召し抱えを願い出てきた。登用するか？', type:'info', w:7, ef:{},
+    choices:[
+      { label:'実力を認め登用する', cls:'c-good', effect:'有能な浪人を登用した。実力派が喜ぶが門閥派は反発する。', ef:{ military:3, minshinD:2, monbatsuD:-5 } },
+      { label:'身分を重んじ断る', cls:'', effect:'門閥派の秩序を守った。', ef:{ monbatsuD:3 } },
+    ]
+  },
+
+  // 確立期 (1603-1650)
+  { id:'kenchi', title:'検地の実施', text:'幕府の指示に従い領内の検地を実施した。田畑の石高が正確に確定した。', type:'history', w:8, cond:g=>g.year<1651, ef:{ bakufuD:3, kokuMod:.01 } },
+  { id:'boundary', title:'隣藩との境界確定', text:'隣藩との境界争いが解決した。無用な対立が解消された。', type:'good', w:5, cond:g=>g.year<1651, ef:{ bakufuD:2, minshinD:3 } },
+
+  // 安定期 (1651-1780)
+  { id:'genroku_art', title:'元禄文化の波及', text:'上方の元禄文化が領内にも波及し、芸能と商業が盛んになった。', type:'good', w:8, cond:g=>g.year>=1688&&g.year<1710, ef:{ minshinD:4, prestigeD:5 } },
+  { id:'kyoho', title:'享保改革の余波', text:'幕府の享保改革により倹約令が各藩にも求められた。', type:'bad', w:8, cond:g=>g.year>=1716&&g.year<1736, ef:{ minshinD:-3, moneyD:-500 } },
+  { id:'tanuma', title:'田沼時代の商業振興', text:'田沼意次の重商主義の影響で商業活動が活発化した。', type:'good', w:7, cond:g=>g.year>=1767&&g.year<1786, ef:{ moneyD:1500, minshinD:2 } },
+
+  // 改革期 (1781-1852)
+  { id:'foreign_ship', title:'異国船の出没', text:'沖合に見慣れぬ異国の船が現れた。攘夷の気運が高まっている。', type:'info', w:9, cond:g=>g.year>=1800&&g.year<1853, ef:{ minshinD:-2 } },
+  { id:'han_reform', title:'藩政改革の機運', text:'倹約と産業育成を柱とした藩政改革の機運が高まっている。', type:'info', w:7, cond:g=>g.year>=1800&&g.year<1853, ef:{},
+    choices:[
+      { label:'積極的に改革を推進する', cls:'c-good', effect:'改革派の家臣が活躍し藩が活性化した。門閥派は反発した。', ef:{ minshinD:5, kokuMod:.02, monbatsuD:-10 } },
+      { label:'現状維持を選ぶ', cls:'', effect:'安定を優先した。門閥派が安堵した。', ef:{ monbatsuD:5 } },
+    ]
+  },
+
+  // 幕末期 (1853-)
+  { id:'steam_ship', title:'蒸気船の衝撃', text:'開港地から蒸気船の情報が届いた。西洋の技術力に藩内が騒然としている。', type:'info', w:8, cond:g=>g.year>=1853, ef:{ rankakuD:5 } },
+  { id:'joi_movement', title:'尊王攘夷運動の激化', text:'藩内でも尊王攘夷派の志士たちが活発に動いている。', type:'bad', w:10, cond:g=>g.year>=1853, ef:{ minshinD:-3 },
+    choices:[
+      { label:'攘夷派を支持する', cls:'c-danger', effect:'攘夷派の支持に回った。幕府との関係が悪化したが民心は盛り上がった。', ef:{ bakufuD:-10, minshinD:5, tobakuD:15 } },
+      { label:'弾圧して秩序を守る', cls:'', effect:'藩内の過激派を抑えた。幕府の評価は上がった。', ef:{ bakufuD:5, minshinD:-5, tobakuD:-5 } },
+    ]
+  },
+  { id:'trade_profit', title:'開港地からの交易利益', text:'西洋との交易で珍しい品物と利益が領内に入ってきた。', type:'good', w:7, cond:g=>g.year>=1858, ef:{ moneyD:2000, rankakuD:5 } },
+  { id:'sonnojoi', title:'脱藩浪士の問題', text:'尊王攘夷を掲げた浪士が脱藩し各地で問題を起こしている。', type:'bad', w:8, cond:g=>g.year>=1860, ef:{ minshinD:-3, bakufuD:-3, tobakuD:5 } },
+];
+
+// Special player-initiated actions
+const SPECIAL_ACTIONS = [
+  { id:'repay', icon:'💰', title:'借財の返済', desc:'大坂商人への借財を一部返済し利息の負担を軽減する。', cost:'3000両', cond:g=>g.money>=3000&&g.saikai>0,
+    fn:()=>{ gs.money-=3000; gs.saikai=Math.max(0,gs.saikai-10000); addEvent('good','借財返済','大坂商人への借財10000両を返済した。利息の負担が軽くなった。'); } },
+  { id:'gift', icon:'🎁', title:'幕府への贈答', desc:'幕府の重臣へ贈り物をし関係を改善する。', cost:'3000両', cond:g=>g.money>=3000,
+    fn:()=>{ gs.money-=3000; gs.bakufu=clamp(gs.bakufu+10,0,100); addEvent('good','贈答工作','幕府重臣への贈答が功を奏し、幕府との関係が改善された。'); } },
+  { id:'relief', icon:'🌾', title:'農村救済', desc:'困窮した農民に救済米を配り民心を回復させる。', cost:'2500両', cond:g=>g.money>=2500,
+    fn:()=>{ gs.money-=2500; gs.minshin=clamp(gs.minshin+12,0,100); addEvent('good','農村救済','藩の蔵から救済米を配布した。領民の感謝が民心を押し上げた。'); } },
+  { id:'adopt', icon:'👶', title:'養子縁組', desc:'有力家中から養子を迎え世継ぎ問題を解消する。', cost:'5000両＋威信-10', cond:g=>!g.heir&&g.money>=5000,
+    fn:()=>{ gs.money-=5000; gs.prestige=clamp(gs.prestige-10,0,100); gs.heir=true; gs.heirAge=10; addEvent('good','養子縁組成立','縁組が成立し世継ぎ問題が解消した。家臣団の安堵感が広がっている。'); } },
+  { id:'suppress', icon:'⚔️', title:'一揆鎮圧出兵', desc:'不穏な農村地域に藩兵を派遣し秩序を回復する。民心が低い時に有効。', cost:'2000両', cond:g=>g.money>=2000&&g.minshin<55&&g.military>30,
+    fn:()=>{ gs.money-=2000; gs.minshin=clamp(gs.minshin+8,0,100); gs.military=clamp(gs.military-3,0,100); addEvent('info','鎮圧出兵','藩兵を派遣し不穏な動きを抑えた。一時的に秩序が回復した。'); } },
+  { id:'monopoly', icon:'🏪', title:'専売令の布告', desc:'特産品の専売を藩が独占し直接収益を得る。民心と商人関係が悪化する。', cost:'なし（効果：収入+10%、民心-8）', cond:g=>!g.monopoly,
+    fn:()=>{ gs.monopoly=true; gs.minshin=clamp(gs.minshin-8,0,100); gs.incomeBonus=(gs.incomeBonus||0)+.10; addEvent('info','専売令布告','特産品の専売令を布告した。商人から反発の声が上がっているが、収益が増加した。'); } },
+  { id:'medical', icon:'💊', title:'藩主の療養', desc:'藩主の健康を回復させるため名医を招く。', cost:'1500両', cond:g=>g.money>=1500&&g.lord.health<14,
+    fn:()=>{ gs.money-=1500; gs.lord.health=Math.min(20,gs.lord.health+5); addEvent('good','療養','名医を招き藩主の健康が回復した。'); } },
+  { id:'recruit', icon:'🗡️', title:'兵の徴集', desc:'農民から兵を徴集し軍事力を増強する。民心が微減する。', cost:'2000両', cond:g=>g.money>=2000&&g.military<90,
+    fn:()=>{ gs.money-=2000; gs.military=clamp(gs.military+10,0,100); gs.minshin=clamp(gs.minshin-3,0,100); addEvent('info','兵の徴集','農村から兵を徴集し軍事力が増強された。'); } },
+];
+
+// Lord traits
+const LORD_TRAITS = [
+  { key:'kaimei', label:'開明的', t:'positive', ef:{ rankakuD:.05, monbatsuD:-.05 } },
+  { key:'hoshu', label:'保守的', t:'negative', ef:{ rankakuD:-.03, monbatsuD:.05 } },
+  { key:'goki', label:'剛毅', t:'positive', ef:{ bakufuD:.1, milD:.2 } },
+  { key:'okubyou', label:'臆病', t:'negative', ef:{ bakufuD:-.1 } },
+  { key:'shashi', label:'奢侈', t:'negative', ef:{ expMod:.08, prestigeD:.2 } },
+  { key:'kenyaku', label:'倹約', t:'positive', ef:{ expMod:-.08, minshinD:.1 } },
+  { key:'ganko', label:'頑固', t:'neutral', ef:{ minshinD:-.1, monbatsuD:.03 } },
+  { key:'jujuku', label:'柔軟', t:'positive', ef:{ minshinD:.1, monbatsuD:-.03 } },
+  { key:'jihi', label:'慈悲深い', t:'positive', ef:{ minshinD:.3, milD:-.1 } },
+  { key:'reikoku', label:'冷酷', t:'negative', ef:{ minshinD:-.3, milD:.2 } },
+  { key:'rankiheki', label:'蘭癖', t:'neutral', ef:{ rankakuD:.12, bakufuD:-.1 } },
+  { key:'kokugaku', label:'国学好き', t:'neutral', ef:{ prestigeD:.2, bakufuD:-.05 } },
+  { key:'bujutsu', label:'武芸好き', t:'positive', ef:{ milD:.3 } },
+  { key:'women', label:'女好き', t:'negative', ef:{ minshinD:-.05, expMod:.03 } },
+];
+
+// ========================== STATE ==========================
+let gs = null;
+let pendingChoice = null;
+
+function newState(domId) {
+  const dom = DOMAINS.find(d=>d.id===domId);
+  const lord = makeLord(dom);
+  return {
+    year:1603, month:1,
+    dom,
+    koku:dom.baseKoku,
+    money:dom.startMoney,
+    saikai:dom.startSaikai,
+    minshin:dom.startMinshin,
+    prestige:dom.startPrestige,
+    rankaku:0,
+    bakufu:dom.startBakufu,
+    military:30,
+    lord,
+    policies:{ finance:0, military:0, domestic:0, education:0, shogunate:0 },
+    monbatsu:65, jitsuryoku:35,
+    sankin:{ inEdo:false, edoMonths:0, nextSankin:(1603*12+12) },
+    heir:true, heirAge:Math.random()<.6?rng(1,14):null,
+    monopoly:false, incomeBonus:0,
+    tobaku:50,          // 0=佐幕 ～ 100=倒幕
+    kaiyakuWarned:false,// 改易通告イベント発生済み
+    prevStats:{minshin:dom.startMinshin, bakufu:dom.startBakufu, money:dom.startMoney},
+    yearRecord:[],      // 年次記録
+    events:[], usedHist:new Set(), turns:0, gameOver:false,
+  };
+}
+
+function makeLord(dom) {
+  const surnames={satsuma:'島津',kaga:'前田',sendai:'伊達',mito:'徳川',hikone:'井伊',tosa:'山内'};
+  const given=['義高','信長','治信','晴信','元就','氏真','隆景','元清','頼宣','光圀','斉彬','容保','宗秀','利家','政宗'][rng(0,14)];
+  const traits=[...LORD_TRAITS].sort(()=>Math.random()-.5).slice(0,rng(2,4));
+  return {
+    surname:surnames[dom.id]||'藤原', given,
+    age:rng(25,42),
+    politics:rng(6,18), gakushiki:rng(4,16), culture:rng(4,16), command:rng(4,16), health:rng(10,18),
+    traits,
+    emoji:['🧑','👨','🧔','👴'][rng(0,3)],
+  };
+}
+
+function rng(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+// ========================== LOGIC ==========================
+
+function calcIncome() {
+  const pol=gs.policies;
+  let incMod=1.0;
+  if(pol.finance===1) incMod+=.15;
+  if(pol.shogunate===1) incMod+=.05;
+  incMod+=(gs.incomeBonus||0);
+  const base=gs.koku*0.4/12*incMod;
+  const prod=gs.dom.products.length*200;
+  const lordMod=1+(gs.lord.politics-10)*.01;
+  const minshinMod=gs.minshin>=80?1.12:gs.minshin<=30?0.72:1.0;
+  return Math.floor((base+prod)*lordMod*minshinMod);
+}
+
+function calcExpense() {
+  const pol=gs.policies;
+  let expMod=1.0;
+  if(pol.finance===0) expMod-=.10;
+  if(pol.military===0) expMod+=.08;
+  if(pol.military===1) expMod+=.15;
+  if(pol.domestic===0) expMod+=.05;
+  if(pol.domestic===1) expMod+=.04;
+  if(pol.education===0) expMod+=.06;
+  if(pol.education===1) expMod+=.05;
+  if(pol.shogunate===0) expMod+=.12;
+  for(const t of gs.lord.traits) if(t.ef.expMod) expMod+=t.ef.expMod;
+  const base=gs.koku*0.25/12*expMod;
+  const edo=gs.dom.baseKoku*0.018/12;
+  const sankinCost=gs.sankin.inEdo?gs.dom.edoDist*280+1500:0;
+  const interest=gs.saikai*0.015;
+  return Math.floor(base+edo+sankinCost+interest);
+}
+
+function processTurn() {
+  if(!gs||gs.gameOver||pendingChoice) return;
+  const inc=calcIncome(), exp=calcExpense();
+  gs.money+=inc-exp;
+  if(gs.money<0){ const b=Math.abs(gs.money)+300; gs.saikai+=b; gs.money=0; addEvent('info','借財増加',`資金不足により大坂商人から${fmt(b)}を借り入れた。`); }
+  applyStats();
+  handleSankin();
+  if(Math.random()<.22) triggerRandom();
+  checkHist();
+  checkKaiyaku();
+  updateTobaku();
+  if(gs.month===12) recordYear();
+  gs.prevStats={minshin:gs.minshin, bakufu:gs.bakufu, money:gs.money};
+  if(!pendingChoice) {
+    checkGameOver();
+    if(!gs.gameOver){ gs.month++; if(gs.month>12){gs.month=1;gs.year++;} gs.turns++; renderAll(); }
+  }
+}
+
+function applyStats() {
+  const pol=gs.policies;
+  let md=(60-gs.minshin)*.012;
+  if(pol.finance===0) md-=.5; if(pol.finance===1) md+=.5;
+  if(pol.domestic===1) md+=.3;
+  for(const t of gs.lord.traits) if(t.ef.minshinD) md+=t.ef.minshinD;
+  gs.minshin=clamp(gs.minshin+md,0,100);
+
+  let bd=(50-gs.bakufu)*.005;
+  if(pol.shogunate===0) bd+=1.5; if(pol.shogunate===1) bd-=.5;
+  if(pol.military===1) bd-=1;
+  for(const t of gs.lord.traits) if(t.ef.bakufuD) bd+=t.ef.bakufuD;
+  gs.bakufu=clamp(gs.bakufu+bd,0,100);
+
+  let rd=pol.education===1?1.8:0;
+  if(gs.year>1750) rd+=.2;
+  for(const t of gs.lord.traits) if(t.ef.rankakuD) rd+=t.ef.rankakuD;
+  gs.rankaku=clamp(gs.rankaku+rd,0,100);
+
+  let mld=(pol.military===1?1.5:.3);
+  for(const t of gs.lord.traits) if(t.ef.milD) mld+=t.ef.milD;
+  gs.military=clamp(gs.military+mld*.08,0,100);
+
+  let pd=(50-gs.prestige)*.005;
+  if(pol.education===0) pd+=.3; if(pol.shogunate===0) pd+=.5;
+  for(const t of gs.lord.traits) if(t.ef.prestigeD) pd+=t.ef.prestigeD;
+  gs.prestige=clamp(gs.prestige+pd,0,100);
+
+  let mbd=0;
+  if(pol.education===1) mbd-=.5; if(pol.domestic===0) mbd+=.2;
+  for(const t of gs.lord.traits) if(t.ef.monbatsuD) mbd+=t.ef.monbatsuD*10;
+  gs.monbatsu=clamp(gs.monbatsu+mbd,10,90); gs.jitsuryoku=100-gs.monbatsu;
+
+  if(pol.domestic===0) gs.koku=Math.floor(gs.koku*1.0008);
+
+  if(gs.month===12){
+    gs.lord.age++;
+    if(gs.lord.age>48) gs.lord.health=Math.max(0,gs.lord.health-.5);
+    if(gs.heir&&gs.heirAge!==null) gs.heirAge++;
+  }
+}
+
+function handleSankin() {
+  const tm=gs.year*12+gs.month;
+  if(!gs.sankin.inEdo&&tm>=gs.sankin.nextSankin){
+    gs.sankin.inEdo=true; gs.sankin.edoMonths=0;
+    const cost=gs.dom.edoDist*280+2000;
+    gs.money=Math.max(0,gs.money-cost);
+    addEvent('info','参勤交代 出府',`参勤交代のため江戸へ出府した。移動費用${fmt(cost)}が発生した。`);
+  }
+  if(gs.sankin.inEdo){
+    gs.sankin.edoMonths++;
+    if(gs.sankin.edoMonths>=12){
+      gs.sankin.inEdo=false;
+      const cost=gs.dom.edoDist*280+2000;
+      gs.money=Math.max(0,gs.money-cost);
+      gs.sankin.nextSankin=(gs.year*12+gs.month)+12;
+      gs.bakufu=clamp(gs.bakufu+3,0,100);
+      addEvent('good','参勤交代 帰国','一年の江戸勤番を終え国許に帰還した。参勤交代の義務を果たし幕府の信頼が増した。');
+    }
+  }
+}
+
+function triggerRandom() {
+  const pool=RND_EVENTS.filter(e=>!e.cond||e.cond(gs));
+  const total=pool.reduce((s,e)=>s+e.w,0);
+  let r=Math.random()*total;
+  for(const e of pool){
+    r-=e.w;
+    if(r<=0){
+      applyEf(e.ef);
+      if(e.lordHpD) gs.lord.health+=e.lordHpD;
+      if(e.special==='heir'){gs.heir=true;gs.heirAge=0;}
+      if(e.choices){ showChoice(e.title,e.text,e.choices); }
+      else{ addEvent(e.type,e.title,e.text); }
+      return;
+    }
+  }
+}
+
+function checkHist() {
+  for(const ev of HIST_EVENTS){
+    const k=`${ev.year}-${ev.month}`;
+    if(!gs.usedHist.has(k)&&gs.year===ev.year&&gs.month===ev.month){
+      applyEf(ev.ef);
+      gs.usedHist.add(k);
+      if(ev.choices){ showChoice(`【史実】${ev.title}`,ev.text,ev.choices); }
+      else{ addEvent(ev.type||'history',`【史実】${ev.title}`,ev.text); }
+    }
+  }
+}
+
+function applyEf(ef) {
+  if(!ef) return;
+  if(ef.moneyD) gs.money=Math.max(0,gs.money+ef.moneyD);
+  if(ef.minshinD) gs.minshin=clamp(gs.minshin+ef.minshinD,0,100);
+  if(ef.prestigeD) gs.prestige=clamp(gs.prestige+ef.prestigeD,0,100);
+  if(ef.bakufuD) gs.bakufu=clamp(gs.bakufu+ef.bakufuD,0,100);
+  if(ef.rankakuD) gs.rankaku=clamp(gs.rankaku+ef.rankakuD,0,100);
+  if(ef.saikaiD) gs.saikai=Math.max(0,gs.saikai+ef.saikaiD);
+  if(ef.military) gs.military=clamp(gs.military+ef.military,0,100);
+  if(ef.milD) gs.military=clamp(gs.military+ef.milD,0,100);
+  if(ef.kokuMod) gs.koku=Math.floor(gs.koku*(1+ef.kokuMod));
+  if(ef.monbatsuD){gs.monbatsu=clamp(gs.monbatsu+ef.monbatsuD*10,10,90);gs.jitsuryoku=100-gs.monbatsu;}
+  if(ef.tobakuD) gs.tobaku=clamp(gs.tobaku+ef.tobakuD,0,100);
+}
+
+function showChoice(title, text, choices) {
+  pendingChoice = choices;
+  document.getElementById('cm-title').textContent = title;
+  document.getElementById('cm-text').textContent = text;
+  document.getElementById('cm-choices').innerHTML = choices.map((c,i)=>`
+    <button class="choice-btn ${c.cls||''}" onclick="resolveChoice(${i})">
+      <div class="clabel">${c.label}</div>
+      <div class="ceffect">${c.effect||c.desc||''}</div>
+    </button>`).join('');
+  document.getElementById('choice-modal').style.display='flex';
+  document.getElementById('btn-turn').disabled=true;
+}
+
+function resolveChoice(idx) {
+  const c=pendingChoice[idx];
+  applyEf(c.ef);
+  const evType = (c.cls==='c-danger')?'bad':(c.cls==='c-good'?'good':'info');
+  addEvent(evType, `決断: ${c.label}`, c.effect||'');
+  pendingChoice=null;
+  document.getElementById('choice-modal').style.display='none';
+  document.getElementById('btn-turn').disabled=false;
+  checkGameOver();
+  if(!gs.gameOver){ gs.month++; if(gs.month>12){gs.month=1;gs.year++;} gs.turns++; }
+  renderAll();
+}
+
+// 改易通告 — 幕府心象が危機的な時に一度だけ回避選択を出す
+function checkKaiyaku() {
+  if(gs.kaiyakuWarned||gs.bakufu>15) return;
+  gs.kaiyakuWarned=true;
+  showChoice('改易通告！',
+    '幕府から改易（領地没収）の通告が届いた。このままでは御家は終わりを迎える。いかに対処するか？',
+    [
+      { label:'多大な献上金を納め謝罪する', cls:'c-good',
+        effect:'全財産を投じ謝罪した。幕府は一歩引いたが、藩財政が壊滅的打撃を受けた。',
+        ef:{ bakufuD:25, moneyD:-Math.floor(gs.money*0.8) } },
+      { label:'朝廷に仲裁を依頼する', cls:'',
+        effect:'朝廷を通じた工作が功を奏し、幕府は改易を保留した。しかし費用がかかった。',
+        ef:{ bakufuD:15, moneyD:-3000, prestigeD:5 } },
+      { label:'近隣の外様藩と連携し抵抗する', cls:'c-danger',
+        effect:'反幕府の連携を試みた。危険な賭けだが、幕府は強引な行動を控えた。',
+        ef:{ bakufuD:10, tobakuD:20, military:5 } },
+    ]
+  );
+}
+
+// 倒幕/佐幕 傾向の自動変動
+function updateTobaku() {
+  if(gs.year<1840) return;
+  let d=0;
+  if(gs.year>=1853) d+=(gs.rankaku-30)*0.02;  // 蘭学が高いほど倒幕傾向
+  if(gs.policies.shogunate===1) d+=0.3;        // 面従腹背 → 倒幕
+  if(gs.policies.shogunate===0) d-=0.3;        // 献辞工作 → 佐幕
+  if(gs.dom.type==='shinpan') d-=0.5;          // 親藩は佐幕傾向
+  if(gs.dom.type==='tozama') d+=0.3;           // 外様は倒幕傾向
+  gs.tobaku=clamp(gs.tobaku+d, 0, 100);
+}
+
+// 年次記録
+function recordYear() {
+  gs.yearRecord.push({
+    year:gs.year, koku:gs.koku, money:gs.money,
+    minshin:Math.floor(gs.minshin), bakufu:Math.floor(gs.bakufu)
+  });
+}
+
+// トレンド矢印
+function trend(cur, prev, threshold=2) {
+  const d=cur-prev;
+  if(d>threshold) return '<span class="trend-up">▲</span>';
+  if(d<-threshold) return '<span class="trend-dn">▼</span>';
+  return '<span class="trend-eq">━</span>';
+}
+
+// ゲームエンドサマリー表示
+function showSummary(icon, title, desc) {
+  gs.gameOver=true;
+  document.getElementById('go-modal').style.display='none';
+  const yearsRuled=gs.year-1603+(gs.month>1?1:0);
+  // 功績判定
+  const achievs=[];
+  if(gs.koku>gs.dom.baseKoku*1.2) achievs.push({t:'開墾の功',g:true});
+  if(gs.saikai===0) achievs.push({t:'無借金経営',g:true});
+  if(gs.saikai>gs.koku*2) achievs.push({t:'借財まみれ',g:false});
+  if(gs.minshin>80) achievs.push({t:'仁政の誉れ',g:true});
+  if(gs.minshin<20) achievs.push({t:'暴政の汚名',g:false});
+  if(gs.bakufu>80) achievs.push({t:'幕府の信頼',g:true});
+  if(gs.rankaku>70) achievs.push({t:'蘭学の先駆',g:true});
+  if(gs.military>80) achievs.push({t:'精強な藩兵',g:true});
+  if(gs.turns>1200) achievs.push({t:'百年の治世',g:true});
+  if(gs.tobaku>70) achievs.push({t:'倒幕の志士',g:true});
+  if(gs.tobaku<30) achievs.push({t:'幕府の忠臣',g:true});
+
+  document.getElementById('sum-icon').textContent=icon;
+  document.getElementById('sum-title').textContent=title;
+  document.getElementById('sum-desc').textContent=desc;
+  document.getElementById('sum-grid').innerHTML=`
+    <div class="summary-item"><div class="sl">統治期間</div><div class="sv">${yearsRuled}年</div></div>
+    <div class="summary-item"><div class="sl">藩名</div><div class="sv">${gs.dom.name}</div></div>
+    <div class="summary-item"><div class="sl">最終石高</div><div class="sv">${fmtK(gs.koku)}</div></div>
+    <div class="summary-item"><div class="sl">最終藩金</div><div class="sv">${fmt(gs.money)}</div></div>
+    <div class="summary-item"><div class="sl">最終民心</div><div class="sv">${Math.floor(gs.minshin)}</div></div>
+    <div class="summary-item"><div class="sl">最終借財</div><div class="sv">${fmt(gs.saikai)}</div></div>
+    <div class="summary-item"><div class="sl">最終幕府心象</div><div class="sv">${Math.floor(gs.bakufu)}</div></div>
+    <div class="summary-item"><div class="sl">蘭学レベル</div><div class="sv">${Math.floor(gs.rankaku)}</div></div>
+  `;
+  document.getElementById('sum-achievs').innerHTML=achievs.length===0
+    ?'<span style="color:var(--ink-light);font-size:.8rem">特記事項なし</span>'
+    :achievs.map(a=>`<span class="achiev-chip${a.g?'':' bad'}">${a.t}</span>`).join('');
+  document.getElementById('summary-modal').style.display='flex';
+}
+
+function checkGameOver() {
+  if(gs.minshin<=0){ showSummary('⚔️','大一揆による御家取り潰し','民心が極限まで低下し大規模な一揆が勃発。幕府から改易を命じられた。'); return; }
+  if(gs.bakufu<=5){ showSummary('🏯','幕府命令による改易','幕府との関係が最悪となり改易の命が下った。領地はすべて没収された。'); return; }
+  if(gs.saikai>gs.koku*3.5){ showSummary('💸','財政破綻','大坂借財が石高の3.5倍を超え財政が完全に破綻した。藩の運営が不可能となった。'); return; }
+  if(gs.lord.health<=0||gs.lord.age>83){
+    if(!gs.heir){ showSummary('⚠️','御家断絶 〜無嗣断絶〜','藩主が世を去ったが世継ぎが定まっていなかった。幕府により無嗣断絶とされた。'); return; }
+    const old=`${gs.lord.surname} ${gs.lord.given}`;
+    gs.lord=makeLord(gs.dom); gs.lord.age=gs.heirAge||18; gs.heirAge=null; gs.heir=false;
+    addEvent('critical','藩主交代',`${old}が薨去した。世継ぎが藩政を引き継ぐ。新藩主は${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）。`);
+  }
+  if(gs.year>=1868){
+    const ending = gs.tobaku>65 ? '倒幕派として明治新政府を支持し、廃藩置県を経て新しい時代へと歩み出した。' :
+                   gs.tobaku<35 ? '佐幕派として最後まで徳川を支えたが、幕府の崩壊とともに新時代に飲み込まれた。' :
+                   '激動の幕末を中立的に乗り越え、新政府のもとで藩の存続を図った。';
+    showSummary('🌅','幕藩体制の終焉',`大政奉還により幕藩体制は終わりを告げた。${gs.dom.name}は${gs.year-1603}年間の歴史を刻んだ。${ending}`);
+  }
+}
+
+function addEvent(type,title,text){ gs.events.unshift({type,title,text,year:gs.year,month:gs.month}); if(gs.events.length>50) gs.events.pop(); }
+
+// ========================== HELPERS ==========================
+function clamp(v,mn,mx){return Math.min(mx,Math.max(mn,v))}
+function fmt(n){return `${Math.floor(n).toLocaleString()}両`}
+function fmtK(n){return `${Math.floor(n).toLocaleString()}石`}
+function mName(m){return['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'][m-1]}
+function era(y){
+  const es=[[1868,'明治'],[1865,'慶応'],[1861,'文久'],[1858,'安政'],[1848,'嘉永'],[1844,'弘化'],[1830,'天保'],[1818,'文政'],[1804,'文化'],[1801,'享和'],[1789,'寛政'],[1781,'天明'],[1764,'明和'],[1751,'宝暦'],[1748,'寛延'],[1744,'延享'],[1736,'元文'],[1716,'享保'],[1704,'宝永'],[1688,'元禄'],[1684,'貞享'],[1661,'寛文'],[1655,'明暦'],[1652,'承応'],[1648,'慶安'],[1644,'正保'],[1624,'寛永'],[1615,'元和'],[1603,'慶長']];
+  for(const [y2,n] of es) if(y>=y2) return `${n}${y-y2+1}年`;
+  return `${y}年`;
+}
+function phase(y){
+  if(y<=1650) return{label:'確立期',cls:'phase-s'};
+  if(y<=1780) return{label:'安定期',cls:'phase-a'};
+  if(y<=1852) return{label:'改革期',cls:'phase-k'};
+  return{label:'幕末期',cls:'phase-b'};
+}
+
+// ========================== RENDER ==========================
+function renderAll(){
+  if(!gs) return;
+  renderHeader(); renderLeft(); renderRight(); renderEvents(); renderFinance(); renderPolicies(); renderActions();
+}
+
+function renderHeader(){
+  document.getElementById('h-date').textContent=`${gs.year}年（${era(gs.year)}）${gs.month}月 ${mName(gs.month)}`;
+  document.getElementById('h-koku').textContent=fmtK(gs.koku);
+  document.getElementById('h-money').textContent=fmt(gs.money);
+  document.getElementById('h-minshin').textContent=Math.floor(gs.minshin);
+  document.getElementById('h-saikai').textContent=fmt(gs.saikai);
+  document.getElementById('h-bakufu').textContent=Math.floor(gs.bakufu);
+  const p=phase(gs.year);
+  const ph=document.getElementById('h-phase'); ph.textContent=p.label; ph.className=`phase-badge ${p.cls}`;
+  // Year progress bar (1603 → 1867 = 264 years)
+  const pct=((gs.year-1603)*12+gs.month-1)/((1867-1603)*12+12)*100;
+  document.getElementById('year-bar').style.width=`${Math.min(100,pct)}%`;
+}
+
+function renderLeft(){
+  const L=gs.lord;
+  document.getElementById('lord-portrait').textContent=L.emoji;
+  document.getElementById('lord-name').textContent=`${L.surname} ${L.given}`;
+  document.getElementById('lord-age').textContent=`${L.age}歳 ／ 健康${Math.max(0,Math.floor(L.health))}`;
+  document.getElementById('lord-sankin').innerHTML=gs.sankin.inEdo?'<span class="sbadge sb-edo">江戸在府中</span>':'<span class="sbadge sb-kuni">国許在国</span>';
+  document.getElementById('ability-grid').innerHTML=[['政治',L.politics],['学識',L.gakushiki],['文化',L.culture],['統率',L.command],['健康',Math.floor(L.health)]]
+    .map(([l,v])=>`<div class="aitem"><div class="al">${l}</div><div class="av">${v}/20</div></div>`).join('');
+  document.getElementById('trait-list').innerHTML=L.traits.map(t=>`<span class="tchip t${t.t==='positive'?'p':t.t==='negative'?'n':'nu'}">${t.label}</span>`).join('');
+  document.getElementById('domain-info').innerHTML=`
+    <div class="frow"><div class="flabel">石高</div><div>${fmtK(gs.koku)}</div></div>
+    <div class="frow"><div class="flabel">地方</div><div>${gs.dom.region}</div></div>
+    <div class="frow"><div class="flabel">種別</div><div><span class="dtag tag-${gs.dom.type}">${gs.dom.typeLabel}</span></div></div>
+    <div class="frow" style="border:none"><div class="flabel">江戸距離</div><div>${gs.dom.edoDist}宿場</div></div>`;
+  document.getElementById('product-list').innerHTML=gs.dom.products.map(p=>`<span class="pchip">${p}${gs.monopoly?'（専売）':''}</span>`).join('');
+  document.getElementById('fac-mon').style.width=`${gs.monbatsu}%`;
+  document.getElementById('fac-mv').textContent=Math.floor(gs.monbatsu);
+  document.getElementById('fac-jv').textContent=Math.floor(gs.jitsuryoku);
+  const hi=document.getElementById('heir-info');
+  hi.innerHTML=gs.heir&&gs.heirAge!==null?`<span style="color:var(--green)">✓ 世継ぎあり（${Math.floor(gs.heirAge)}歳）</span>`:
+    gs.heir?'<span style="color:var(--green)">✓ 世継ぎあり</span>':'<span style="color:var(--red)">⚠️ 世継ぎ未定</span>';
+}
+
+function renderRight(){
+  const p=gs.prevStats||{};
+  const sb=(id,v,cls,prev)=>{
+    document.getElementById(`bar-${id}`).style.width=`${clamp(v,0,100)}%`;
+    document.getElementById(`bar-${id}`).className=`sbar ${cls}`;
+    const t=prev!==undefined?trend(v,prev):'';
+    document.getElementById(`val-${id}`).innerHTML=Math.floor(v)+t;
+  };
+  sb('minshin',gs.minshin,gs.minshin<30?'br':'bg',p.minshin);
+  sb('prestige',gs.prestige,'bgold');
+  sb('bakufu',gs.bakufu,gs.bakufu<20?'br':'bb',p.bakufu);
+  sb('rankaku',gs.rankaku,'bp');
+  sb('military',gs.military,'br');
+
+  // 倒幕/佐幕メーター（1840年以降表示）
+  const tSec=document.getElementById('tobaku-section');
+  if(gs.year>=1840){
+    tSec.style.display='';
+    const w=gs.tobaku;
+    document.getElementById('tobaku-sabaku-bar').style.width=`${100-w}%`;
+    const lbl=gs.tobaku>70?'倒幕色が強い':gs.tobaku>55?'やや倒幕寄り':gs.tobaku<30?'佐幕色が強い':gs.tobaku<45?'やや佐幕寄り':'中立';
+    document.getElementById('tobaku-label').textContent=lbl;
+  } else { tSec.style.display='none'; }
+  const inc=calcIncome(),exp=calcExpense(),bal=inc-exp;
+  document.getElementById('f-income').textContent=`+${fmt(inc)}`;
+  document.getElementById('f-expense').textContent=`-${fmt(exp)}`;
+  const bEl=document.getElementById('f-balance'); bEl.textContent=`${bal>=0?'+':''}${fmt(bal)}`; bEl.className=bal>=0?'fpos':'fneg';
+  document.getElementById('f-saikai').textContent=fmt(gs.saikai);
+  document.getElementById('cur-policies').innerHTML=POLICIES.map(p=>`<div class="frow"><div class="flabel">${p.label}</div><div>${p.options[gs.policies[p.key]].label}</div></div>`).join('');
+  const bf=gs.bakufu;
+  document.getElementById('bakufu-status').innerHTML=bf>=70?'<span style="color:var(--green)">良好 — 関係は安定している</span>':bf>=40?'<span style="color:var(--wood)">普通 — 問題なし</span>':bf>=20?'<span style="color:var(--red)">悪化 — 幕府の警戒が増大</span>':'<span style="color:var(--red)"><strong>危機的 — 改易の危機！</strong></span>';
+  if(gs.sankin.inEdo) document.getElementById('bakufu-status').innerHTML+='<br><span style="color:var(--indigo)">参勤交代中（江戸在府）</span>';
+  const warns=[];
+  if(gs.minshin<35) warns.push('⚠️ 民心低下。一揆の危険。');
+  if(gs.bakufu<25) warns.push('⚠️ 幕府心象が危機的。改易の危険！');
+  if(gs.saikai>gs.koku*2) warns.push('⚠️ 大坂借財が過大。財政危機。');
+  if(!gs.heir) warns.push('⚠️ 世継ぎが未定。断絶の危険。');
+  if(gs.lord.health<5) warns.push('⚠️ 藩主の健康が危険水域。');
+  if(calcIncome()<calcExpense()) warns.push('⚠️ 毎月赤字。借財増加中。');
+  document.getElementById('warnings').innerHTML=warns.length===0?'<span style="color:var(--green)">特になし</span>':warns.map(w=>`<div style="color:var(--red);margin-bottom:.2rem">${w}</div>`).join('');
+}
+
+function renderEvents(){
+  document.getElementById('event-log').innerHTML=gs.events.map(e=>`<div class="event-entry ev-${e.type}"><div class="edate">${e.year}年${e.month}月（${era(e.year)}）</div><div class="etitle">${e.title}</div><div class="etext">${e.text}</div></div>`).join('');
+}
+
+function renderFinance(){
+  const inc=calcIncome(),exp=calcExpense();
+  const base=Math.floor(gs.koku*.4/12),prod=gs.dom.products.length*200,ret=Math.floor(gs.koku*.25/12);
+  const edo=Math.floor(gs.dom.baseKoku*.018/12),sankin=gs.sankin.inEdo?Math.floor(gs.dom.edoDist*280+1500):0,interest=Math.floor(gs.saikai*.015);
+  document.getElementById('finance-detail').innerHTML=`
+    <p style="font-size:.75rem;color:var(--ink-light);margin-bottom:.7rem">月次収支の詳細（統治${gs.turns}ヶ月目）</p>
+    <h4 style="margin-bottom:.4rem;font-size:.8rem">◆ 収入</h4>
+    <div class="frow"><div class="flabel">年貢収入</div><div class="fpos">+${fmt(base)}</div></div>
+    <div class="frow"><div class="flabel">特産品収入</div><div class="fpos">+${fmt(prod)}</div></div>
+    ${gs.monopoly?`<div class="frow"><div class="flabel">専売益</div><div class="fpos">+専売加算中</div></div>`:''}
+    <div class="frow ftotal"><div>合計収入</div><div class="fpos">+${fmt(inc)}</div></div>
+    <h4 style="margin-top:.8rem;margin-bottom:.4rem;font-size:.8rem">◆ 支出</h4>
+    <div class="frow"><div class="flabel">家臣給与</div><div class="fneg">-${fmt(ret)}</div></div>
+    <div class="frow"><div class="flabel">江戸屋敷</div><div class="fneg">-${fmt(edo)}</div></div>
+    <div class="frow"><div class="flabel">参勤費用</div><div class="fneg">-${fmt(sankin)}</div></div>
+    <div class="frow"><div class="flabel">大坂利息(1.5%)</div><div class="fneg">-${fmt(interest)}</div></div>
+    <div class="frow ftotal"><div>合計支出</div><div class="fneg">-${fmt(exp)}</div></div>
+    <div style="margin-top:.8rem;padding-top:.5rem;border-top:2px solid var(--border)">
+      <div class="frow ftotal"><div>月間収支</div><div class="${inc>=exp?'fpos':'fneg'}">${inc>=exp?'+':''}${fmt(inc-exp)}</div></div>
+      <div class="frow"><div class="flabel">現在の藩金</div><div>${fmt(gs.money)}</div></div>
+      <div class="frow" style="border:none"><div class="flabel">大坂借財</div><div class="fneg">${fmt(gs.saikai)}</div></div>
+    </div>`;
+}
+
+function renderPolicies(){
+  document.getElementById('policy-grid').innerHTML=POLICIES.map(pol=>`
+    <div class="prow">
+      <div class="pcat">◆ ${pol.label}</div>
+      <div class="popts">
+        ${pol.options.map((opt,i)=>`<button class="popt${gs.policies[pol.key]===i?' active':''}" onclick="setPolicy('${pol.key}',${i})">
+          <div>${opt.label}</div><div style="font-size:.65rem;opacity:.8;margin-top:.15rem">${opt.short}</div>
+        </button>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function renderActions(){
+  document.getElementById('action-grid').innerHTML=SPECIAL_ACTIONS.map(a=>{
+    const ok=a.cond(gs);
+    return `<div class="action-card${ok?'':' disabled'}" onclick="${ok?`execAction('${a.id}')`:''}" title="${ok?'':'条件を満たしていません'}">
+      <div class="atitle">${a.icon} ${a.title}</div>
+      <div class="adesc">${a.desc}</div>
+      <div class="acost">費用: ${a.cost}</div>
+    </div>`;
+  }).join('');
+}
+
+// ========================== ACTIONS ==========================
+function setPolicy(key,idx){
+  if(gs.policies[key]===idx) return;
+  const pol=POLICIES.find(p=>p.key===key);
+  gs.policies[key]=idx;
+  const opt=pol.options[idx];
+  addEvent('info',`政策変更: ${pol.label}`,`「${opt.label}」を採用した。${opt.short}`);
+  if(key==='education'&&idx===1&&gs.monbatsu>70){gs.monbatsu=clamp(gs.monbatsu+5,10,90);gs.jitsuryoku=100-gs.monbatsu;addEvent('bad','門閥派の反発','蘭学保護の採用に門閥派が強く反発している。');}
+  renderAll(); notif(`${pol.label}を「${opt.label}」に変更`);
+}
+
+function execAction(id){
+  if(!gs||gs.gameOver) return;
+  const a=SPECIAL_ACTIONS.find(x=>x.id===id);
+  if(!a||!a.cond(gs)){notif('この施策は現在実行できません');return;}
+  a.fn(); renderAll(); notif(`施策「${a.title}」を実行しました`);
+}
+
+function switchTab(tabId,btn){
+  document.querySelectorAll('.tcontent').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`tab-${tabId}`).classList.add('active');
+  btn.classList.add('active');
+}
+
+function notif(text){
+  const el=document.createElement('div'); el.className='notif'; el.textContent=text;
+  document.body.appendChild(el); setTimeout(()=>el.remove(),3000);
+}
+
+// ========================== TITLE ==========================
+let selDomain=null;
+
+function initTitle(){
+  document.getElementById('domain-grid').innerHTML=DOMAINS.map(d=>`
+    <div class="domain-card" onclick="selDom('${d.id}')" id="dc-${d.id}">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">
+        <span style="font-size:1.4rem">${d.mon}</span>
+        <h3>${d.name}</h3>
+        <span class="dtag tag-${d.type}">${d.typeLabel}</span>
+      </div>
+      <div class="dinfo">
+        <div>石高: ${fmtK(d.baseKoku)} ／ ${d.region}</div>
+        <div style="margin-top:.3rem;color:#c0b090;font-size:.78rem">${d.desc}</div>
+      </div>
+    </div>`).join('');
+}
+
+function selDom(id){
+  selDomain=id;
+  document.querySelectorAll('.domain-card').forEach(c=>c.classList.remove('sel'));
+  document.getElementById(`dc-${id}`).classList.add('sel');
+  document.getElementById('btn-start').disabled=false;
+}
+
+function startGame(){
+  if(!selDomain) return;
+  gs=newState(selDomain);
+  addEvent('history','ゲーム開始',`${gs.year}年（${era(gs.year)}）、${gs.dom.name}の藩政が始まった。${gs.dom.desc}。藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。`);
+  document.getElementById('title-screen').style.display='none';
+  document.getElementById('game-screen').style.display='flex';
+  renderAll();
+}
+
+document.getElementById('btn-start').addEventListener('click',startGame);
+document.getElementById('btn-turn').addEventListener('click',()=>{if(gs&&!gs.gameOver&&!pendingChoice) processTurn();});
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&gs&&!gs.gameOver&&!pendingChoice){e.preventDefault();processTurn();}});
+
+initTitle();
+</script>
+</body>
+</html>
