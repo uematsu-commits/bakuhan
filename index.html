@@ -166,6 +166,37 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
 .choice-btn.c-danger:hover{background:rgba(139,26,26,.1)}
 .choice-btn.c-good{border-color:var(--green)}
 .choice-btn.c-good:hover{background:rgba(45,106,45,.1)}
+/* トレイット固有選択肢 */
+.choice-btn.choice-trait{border-left:3px solid var(--gold);background:rgba(201,162,39,.07)}
+.choice-btn.choice-trait .clabel::before{content:'★ ';color:var(--gold);font-size:.75rem}
+.choice-btn.choice-trait:hover{background:rgba(201,162,39,.18)}
+
+/* FACILITY */
+.btn-fac{width:100%;margin-top:.4rem;background:var(--indigo);color:#fff;border:none;padding:.4rem;font-size:.75rem;font-family:inherit;cursor:pointer;border-radius:3px;transition:all .2s}
+.btn-fac:hover{background:var(--indigo-light)}
+.fac-progress{margin-bottom:.5rem}
+.fac-prog-bar{height:7px;background:#d0c0a0;border-radius:4px;overflow:hidden;margin:.2rem 0}
+.fac-prog-fill{height:100%;background:var(--gold);border-radius:4px;transition:width .4s}
+.fac-chips{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.3rem}
+.fac-chip{font-size:.68rem;padding:2px 6px;background:rgba(201,162,39,.15);border:1px solid var(--gold);border-radius:3px;color:var(--wood)}
+.fac-modal-box{background:var(--paper);border:3px solid var(--gold);border-radius:8px;padding:1.5rem;max-width:680px;width:95%;max-height:80vh;overflow-y:auto}
+.fac-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.fac-card{background:rgba(255,255,255,.7);border:1px solid var(--border);border-radius:5px;padding:.75rem}
+.fac-built{opacity:.6;background:rgba(45,106,45,.06);border-color:var(--green)}
+.fac-noafford{opacity:.75}
+.fac-head{display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem}
+.fac-icon{font-size:1.2rem}
+.fac-name{font-size:.88rem;font-weight:bold}
+.fac-tag{font-size:.65rem;padding:1px 6px;border-radius:3px;margin-left:auto}
+.fac-tag-done{background:var(--green);color:#fff}
+.fac-tag-wip{background:var(--gold);color:var(--ink)}
+.fac-desc{font-size:.72rem;color:var(--ink-light);line-height:1.55;margin-bottom:.5rem}
+.fac-foot{display:flex;align-items:center;justify-content:space-between;gap:.4rem}
+.fac-cost{font-size:.72rem;color:var(--ink-light)}
+.btn-build{background:var(--vermilion);color:#fff;border:none;padding:3px 10px;font-size:.72rem;font-family:inherit;cursor:pointer;border-radius:3px}
+.btn-build:hover{background:var(--vermilion-dark)}
+.btn-build:disabled{opacity:.5;cursor:not-allowed;background:#888}
+@media(max-width:500px){.fac-grid{grid-template-columns:1fr}}
 
 /* NOTIF */
 .notif{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:.5rem 1.3rem;border-radius:20px;font-size:.82rem;z-index:500;border:1px solid var(--gold);white-space:nowrap;animation:npi .3s ease,nfo .5s ease 2.3s forwards}
@@ -348,6 +379,11 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
         <div style="font-size:.7rem;color:var(--ink-light);text-align:center" id="tobaku-label">-</div>
       </div>
       <div class="psec">
+        <h4>◆ 城下町開発</h4>
+        <div id="facility-status"></div>
+        <button class="btn-fac" onclick="openFacilityModal()">建設を計画する 🏗️</button>
+      </div>
+      <div class="psec">
         <h4>◆ 警告</h4>
         <div id="warnings" style="font-size:.75rem"></div>
       </div>
@@ -368,6 +404,18 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
     </div>
     <div style="text-align:center;margin-top:1.2rem">
       <button class="btn-primary" onclick="location.reload()">最初から</button>
+    </div>
+  </div>
+</div>
+
+<!-- FACILITY MODAL -->
+<div id="fac-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:900;align-items:center;justify-content:center">
+  <div class="fac-modal-box">
+    <h3 style="color:var(--gold);font-size:1.1rem;margin-bottom:.5rem">🏗️ 城下町・施設の建設</h3>
+    <p style="font-size:.75rem;color:var(--ink-light);margin-bottom:1rem;line-height:1.6">施設を建設することで藩に恒久的な効果をもたらします。建設中は同時に1つのみ、完成まで費用を投じる必要はありません。</p>
+    <div class="fac-grid" id="fac-modal-content"></div>
+    <div style="text-align:center;margin-top:1rem">
+      <button class="btn-primary" onclick="closeFacilityModal()">閉じる</button>
     </div>
   </div>
 </div>
@@ -460,6 +508,9 @@ const HIST_EVENTS = [
       { label:'年貢を大幅に減免する', cls:'c-good', effect:'領民の苦しみを和らげた。財政は苦しいが民心が回復する。', ef:{ minshinD:12, moneyD:-3000 } },
       { label:'年貢は維持し財政を守る', cls:'c-danger', effect:'財政は守られたが、領民の怨嗟の声が高まった。', ef:{ minshinD:-8 } },
       { label:'幕府に救済を要請する', cls:'', effect:'幕府から援助物資が届いた。関係もわずかに改善した。', ef:{ minshinD:5, bakufuD:3, moneyD:-500 } },
+      { label:'【慈悲】藩主自ら村々を巡り民と苦難を共にする', traitReq:'jihi', cls:'c-good',
+        effect:'慈悲深い藩主が雨の中を自ら村に入り、民と粥を分かち合った。この振る舞いが語り草となり、藩主への篤い信頼が生まれた。',
+        ef:{ minshinD:20, prestigeD:10, moneyD:-2000 } },
     ]
   },
   { year:1787, month:1, title:'寛政の改革', text:'老中・松平定信が寛政の改革を開始。各藩にも倹約と風紀粛正が求められる。', type:'history', ef:{ minshinD:-2 },
@@ -481,6 +532,12 @@ const HIST_EVENTS = [
       { label:'開国論を上申する', cls:'c-good', effect:'開国を支持する意見を幕府に提出した。蘭学派に評価されたが攘夷派は激怒した。', ef:{ rankakuD:8, bakufuD:3, minshinD:-5 } },
       { label:'攘夷論を上申する', cls:'c-danger', effect:'攘夷を強く主張した。民心は盛り上がったが、開国の波は止まらない。', ef:{ minshinD:5, military:5, bakufuD:-5 } },
       { label:'慎重論を述べ静観する', cls:'', effect:'中立的な立場を取り様子を見た。', ef:{ bakufuD:1 } },
+      { label:'【博識】蘭学の見地から論理的な開国論を展開する', traitReq:'hakushiki', cls:'c-good',
+        effect:'博識な藩主が西洋の国力・軍事データを示しながら開国論を説いた。学識ある意見として幕府と諸藩に広く評価された。',
+        ef:{ rankakuD:14, bakufuD:5, prestigeD:10, minshinD:-3 } },
+      { label:'【武断】断固たる攘夷の構えを示し備えを整える', traitReq:'budan', cls:'c-danger',
+        effect:'武断の藩主が攘夷を宣言しつつ、同時に沿岸防備を強化した。民心は沸き立ち、実際の軍備も向上した。',
+        ef:{ minshinD:8, military:8, bakufuD:-7, tobakuD:10 } },
     ]
   },
   { year:1858, month:6, title:'日米修好通商条約', text:'大老・井伊直弼が朝廷の勅許なく日米修好通商条約に調印した。不平等条約への不満が国内に渦巻いている。', type:'history', ef:{ bakufuD:-8, minshinD:-3 },
@@ -522,6 +579,12 @@ const RND_EVENTS = [
     choices:[
       { label:'快く応じる', cls:'c-good', effect:'幕府への忠誠を示した。費用はかかったが心象が上がった。', ef:{ moneyD:-1000, bakufuD:5 } },
       { label:'減免を交渉する', cls:'', effect:'費用の削減に成功した。幕府の評価はやや下がった。', ef:{ moneyD:1000, bakufuD:-2 } },
+      { label:'【剛直】一切の不平なく誠意をもって奉仕する', traitReq:'gochoku', cls:'c-good',
+        effect:'剛直な藩主の筋を通した誠実な奉仕が幕府の目に留まった。大きな出費だが、老中から直々の賞賛を受けた。',
+        ef:{ moneyD:-2500, bakufuD:12, prestigeD:6 } },
+      { label:'【狡猾】表向き従いながら費用を工夫する', traitReq:'kokatsu', cls:'',
+        effect:'巧みな采配で表面上の遵守を示しながら、実際の出費を大幅に抑えた。幕府は気づかなかった。',
+        ef:{ moneyD:800, bakufuD:2 } },
     ]
   },
   { id:'ikki', title:'百姓一揆の勃発', text:'年貢への不満が爆発し、領内で一揆が起きた！早急な対応が求められる。', type:'critical', w:9, cond:g=>g.minshin<40, ef:{ minshinD:-5 },
@@ -529,6 +592,12 @@ const RND_EVENTS = [
       { label:'武力で鎮圧する', cls:'c-danger', effect:'軍を出動させ鎮圧した。一揆は収まったが民心の傷は深い。', ef:{ minshinD:-8, moneyD:-1500, military:-3 } },
       { label:'要求を聞き年貢を減免する', cls:'c-good', effect:'要求を受け入れ年貢を減免した。民心が回復するが財政は悪化する。', ef:{ minshinD:15, moneyD:-3000 } },
       { label:'幕府に報告し指示を仰ぐ', cls:'', effect:'幕府の判断を仰いだ。遅延したが幕府の支援を得た。', ef:{ minshinD:-3, bakufuD:2, moneyD:-500 } },
+      { label:'【慈悲】藩主自ら農民の前に立ち和解を図る', traitReq:'jihi', cls:'c-good',
+        effect:'慈悲深い藩主が馬から降り、農民と直接向き合った。その姿が民の心を動かし、一揆は静かに収まった。',
+        ef:{ minshinD:22, moneyD:-1000 } },
+      { label:'【武断】精鋭部隊で電撃的に鎮圧する', traitReq:'budan', cls:'c-danger',
+        effect:'武断の藩主が自ら指揮を執り、迅速かつ的確に収拾した。被害を最小限に抑えることができた。',
+        ef:{ minshinD:-3, moneyD:-700, military:-1 } },
     ]
   },
   { id:'earthquake', title:'大地震', text:'大地震が発生し領内の建物に被害が出た。', type:'bad', w:5, ef:{ moneyD:-1800, minshinD:-7 } },
@@ -539,12 +608,18 @@ const RND_EVENTS = [
     choices:[
       { label:'借り入れる（+5000両、借財増）', cls:'c-danger', effect:'資金を調達したが借財が増えた。', ef:{ moneyD:5000, saikaiD:8000 } },
       { label:'断る', cls:'c-good', effect:'借財を増やさず済んだ。', ef:{} },
+      { label:'【倹約】断り、藩の支出を徹底的に見直す', traitReq:'kenyaku', cls:'c-good',
+        effect:'倹約の精神で借入を拒み、その機に藩の無駄な支出を洗い出した。質素な運営が家中に好評を得た。',
+        ef:{ minshinD:3, prestigeD:4, moneyD:600 } },
     ]
   },
   { id:'talented_samurai', title:'浪人の登用願い', text:'有能な浪人が召し抱えを願い出てきた。登用するか？', type:'info', w:7, ef:{},
     choices:[
       { label:'実力を認め登用する', cls:'c-good', effect:'有能な浪人を登用した。実力派が喜ぶが門閥派は反発する。', ef:{ military:3, minshinD:2, monbatsuD:-5 } },
       { label:'身分を重んじ断る', cls:'', effect:'門閥派の秩序を守った。', ef:{ monbatsuD:3 } },
+      { label:'【狡猾】密かに素性を調べた上で登用する', traitReq:'kokatsu', cls:'c-good',
+        effect:'狡猾な藩主が間者を使って素性を確認した。真の実力者と判明し、門閥派にも納得させて登用できた。',
+        ef:{ military:5, minshinD:3 } },
     ]
   },
 
@@ -563,6 +638,9 @@ const RND_EVENTS = [
     choices:[
       { label:'積極的に改革を推進する', cls:'c-good', effect:'改革派の家臣が活躍し藩が活性化した。門閥派は反発した。', ef:{ minshinD:5, kokuMod:.02, monbatsuD:-10 } },
       { label:'現状維持を選ぶ', cls:'', effect:'安定を優先した。門閥派が安堵した。', ef:{ monbatsuD:5 } },
+      { label:'【文治】藩校と農政を一体化した独自改革を進める', traitReq:'bunchi', cls:'c-good',
+        effect:'文治の藩主が学問の場を農村改革の拠点とする独自路線を打ち出した。広範な成果をあげ、名改革として後世に語られた。',
+        ef:{ minshinD:9, kokuMod:.025, prestigeD:8, monbatsuD:-14 } },
     ]
   },
 
@@ -572,6 +650,12 @@ const RND_EVENTS = [
     choices:[
       { label:'攘夷派を支持する', cls:'c-danger', effect:'攘夷派の支持に回った。幕府との関係が悪化したが民心は盛り上がった。', ef:{ bakufuD:-10, minshinD:5, tobakuD:15 } },
       { label:'弾圧して秩序を守る', cls:'', effect:'藩内の過激派を抑えた。幕府の評価は上がった。', ef:{ bakufuD:5, minshinD:-5, tobakuD:-5 } },
+      { label:'【武断】武力で志士たちを素早く制圧する', traitReq:'budan', cls:'c-danger',
+        effect:'武断の藩主が直接兵を動かし、過激派を一掃した。民心は傷つくが、以後の騒擾は収まった。',
+        ef:{ bakufuD:8, minshinD:-8, tobakuD:-8, military:3 } },
+      { label:'【博識】世界情勢を示して志士たちと議論する', traitReq:'hakushiki', cls:'c-good',
+        effect:'博識な藩主が開港地の情報と蘭学の知見を示し、志士たちに冷静な現実を突き付けた。藩内が落ち着きを取り戻した。',
+        ef:{ bakufuD:2, minshinD:3, rankakuD:6, tobakuD:-3 } },
     ]
   },
   { id:'trade_profit', title:'開港地からの交易利益', text:'西洋との交易で珍しい品物と利益が領内に入ってきた。', type:'good', w:7, cond:g=>g.year>=1858, ef:{ moneyD:2000, rankakuD:5 } },
@@ -598,22 +682,87 @@ const SPECIAL_ACTIONS = [
     fn:()=>{ gs.money-=2000; gs.military=clamp(gs.military+10,0,100); gs.minshin=clamp(gs.minshin-3,0,100); addEvent('info','兵の徴集','農村から兵を徴集し軍事力が増強された。'); } },
 ];
 
+// ========================== FACILITIES ==========================
+const FACILITIES = [
+  { id:'shinden', name:'新田開発',   icon:'🌾', cost:5000, months:6,
+    perm:{ kokuMod:.03 }, unique:true, cond:()=>true,
+    desc:'未開地を開墾し石高を恒久的に3%増加させる。長期収入の基盤が強化される。',
+    completeMsg:'新田の開墾が完成した。石高が3%増加した。' },
+  { id:'minato',  name:'港の整備',   icon:'⚓', cost:8000, months:4,
+    perm:{ incomeBonus:.10 }, unique:true,
+    cond:g=>['satsuma','kaga','tosa','sendai','hikone'].includes(g.dom.id),
+    desc:'港湾を整備し海運による交易を活発化する。収入が恒久的に10%増加する。（沿岸藩のみ）',
+    completeMsg:'港が整備された。海運交易により収入が恒久的に10%増加した。' },
+  { id:'shukuba', name:'宿場町整備', icon:'🏘️', cost:4000, months:3,
+    perm:{ minshinCap:5 }, unique:true, cond:()=>true,
+    desc:'街道の宿場町を整え領内の往来を活発にする。民心の上限が5上昇する。',
+    completeMsg:'宿場町が整備された。民心の上限が5上昇した。' },
+  { id:'chisui',  name:'治水工事',   icon:'🌊', cost:6000, months:5,
+    perm:{ disasterMod:-.5 }, unique:true, cond:()=>true,
+    desc:'河川の治水を行い洪水・旱魃・地震による被害を大幅に軽減する。',
+    completeMsg:'治水工事が完了した。自然災害による被害が大幅に軽減される。' },
+  { id:'hankko',  name:'藩校設立',   icon:'📚', cost:7000, months:4,
+    perm:{ rankakuBonus:10 }, unique:true, cond:()=>true,
+    desc:'藩士の子弟を教育し人材を育てる。蘭学知識が+10され、以後の蘭学上昇も速くなる。',
+    completeMsg:'藩校が開校された。藩士の教育水準が上がり、蘭学知識が大きく向上した。' },
+  { id:'kozan',   name:'鉱山開発',   icon:'⛏️', cost:10000, months:8,
+    perm:{ incomeBonus:.15 }, unique:true,
+    cond:g=>['kaga','sendai','mito','tosa'].includes(g.dom.id),
+    desc:'山中の鉱山を開発し採掘収益を得る。収入が恒久的に15%増加する。（特定藩のみ）',
+    completeMsg:'鉱山の開発が完了した。採掘収益により収入が恒久的に15%増加した。' },
+  { id:'shiro',   name:'城郭強化',   icon:'🏯', cost:8000, months:6,
+    perm:{ militaryCap:15 }, unique:true, cond:()=>true,
+    desc:'城を修築し防衛力を高める。軍事力の上限が15上昇する。',
+    completeMsg:'城郭の修築が完了した。軍事力の上限が15上昇した。' },
+  { id:'machiya', name:'商人街整備', icon:'🏪', cost:5000, months:3,
+    perm:{ incomeBonus:.07, minshinCap:3 }, unique:true, cond:()=>true,
+    desc:'城下の商人街を整備し経済を活性化する。収入+7%、民心の上限+3。',
+    completeMsg:'商人街の整備が完了した。収入が7%増加し、民心の上限も3上昇した。' },
+];
+
 // Lord traits
 const LORD_TRAITS = [
-  { key:'kaimei', label:'開明的', t:'positive', ef:{ rankakuD:.05, monbatsuD:-.05 } },
-  { key:'hoshu', label:'保守的', t:'negative', ef:{ rankakuD:-.03, monbatsuD:.05 } },
-  { key:'goki', label:'剛毅', t:'positive', ef:{ bakufuD:.1, milD:.2 } },
-  { key:'okubyou', label:'臆病', t:'negative', ef:{ bakufuD:-.1 } },
-  { key:'shashi', label:'奢侈', t:'negative', ef:{ expMod:.08, prestigeD:.2 } },
-  { key:'kenyaku', label:'倹約', t:'positive', ef:{ expMod:-.08, minshinD:.1 } },
-  { key:'ganko', label:'頑固', t:'neutral', ef:{ minshinD:-.1, monbatsuD:.03 } },
-  { key:'jujuku', label:'柔軟', t:'positive', ef:{ minshinD:.1, monbatsuD:-.03 } },
-  { key:'jihi', label:'慈悲深い', t:'positive', ef:{ minshinD:.3, milD:-.1 } },
-  { key:'reikoku', label:'冷酷', t:'negative', ef:{ minshinD:-.3, milD:.2 } },
-  { key:'rankiheki', label:'蘭癖', t:'neutral', ef:{ rankakuD:.12, bakufuD:-.1 } },
-  { key:'kokugaku', label:'国学好き', t:'neutral', ef:{ prestigeD:.2, bakufuD:-.05 } },
-  { key:'bujutsu', label:'武芸好き', t:'positive', ef:{ milD:.3 } },
-  { key:'women', label:'女好き', t:'negative', ef:{ minshinD:-.05, expMod:.03 } },
+  { key:'kaimei',   label:'開明的',   t:'positive', ef:{ rankakuD:.05, monbatsuD:-.05 },
+    desc:'外来の知識を積極的に取り入れる。蘭学知識が上昇し、門閥への圧力が緩む。' },
+  { key:'hoshu',    label:'保守的',   t:'negative', ef:{ rankakuD:-.03, monbatsuD:.05 },
+    desc:'旧来の秩序を重んじる。蘭学の普及は遅れるが、門閥派からの信頼は厚い。' },
+  { key:'goki',     label:'剛毅',     t:'positive', ef:{ bakufuD:.1, milD:.2 },
+    desc:'意志が強くプレッシャーに動じない。幕府心象が安定し、軍事力も向上しやすい。' },
+  { key:'okubyou',  label:'臆病',     t:'negative', ef:{ bakufuD:-.1 },
+    desc:'決断を避け幕府の顔色を伺いすぎる傾向がある。' },
+  { key:'shashi',   label:'奢侈',     t:'negative', ef:{ expMod:.08, prestigeD:.2 },
+    desc:'贅沢を好む。支出が増えるが、威信は保たれやすい。' },
+  { key:'kenyaku',  label:'倹約',     t:'positive', ef:{ expMod:-.08, minshinD:.1 },
+    desc:'無駄を嫌う質素な性格。支出を抑え民心も安定する。財政イベントで有利な選択肢が現れる。' },
+  { key:'ganko',    label:'頑固',     t:'neutral',  ef:{ minshinD:-.1, monbatsuD:.03 },
+    desc:'一度決めたことを変えない。民心が下がりやすいが、門閥派の結束は固い。' },
+  { key:'jujuku',   label:'柔軟',     t:'positive', ef:{ minshinD:.1, monbatsuD:-.03 },
+    desc:'状況に応じて判断を変える。民心が高まりやすく、門閥への圧力も緩む。' },
+  { key:'jihi',     label:'慈悲深い', t:'positive', ef:{ minshinD:.3, milD:-.1 },
+    desc:'民への思いやりが深い。民心の回復が早く、一揆・飢饉系イベントで特別な選択肢が出る。' },
+  { key:'reikoku',  label:'冷酷',     t:'negative', ef:{ minshinD:-.3, milD:.2 },
+    desc:'感情に流されない合理主義者。民心は下がりやすいが、軍事的対応を素早く取れる。' },
+  { key:'rankiheki',label:'蘭癖',     t:'neutral',  ef:{ rankakuD:.12, bakufuD:-.1 },
+    desc:'西洋文化への強い関心を持つ。蘭学知識が急速に伸びるが、保守派から反発を受ける。' },
+  { key:'kokugaku', label:'国学好き', t:'neutral',  ef:{ prestigeD:.2, bakufuD:-.05 },
+    desc:'日本の伝統文化を重んじる。威信を保ちやすい。' },
+  { key:'bujutsu',  label:'武芸好き', t:'positive', ef:{ milD:.3 },
+    desc:'武芸への情熱が軍事力を後押しする。' },
+  { key:'women',    label:'女好き',   t:'negative', ef:{ minshinD:-.05, expMod:.03 },
+    desc:'女色に溺れがち。支出が増え、民心への配慮も薄れる。' },
+  // ── 新規追加 ──
+  { key:'budan',    label:'武断派',   t:'neutral',  ef:{ milD:.3, minshinD:-.1 },
+    desc:'武力で物事を解決しようとする。軍事力が伸びやすく、鎮圧・軍事イベントで特別な選択肢が現れる。' },
+  { key:'bunchi',   label:'文治派',   t:'positive', ef:{ minshinD:.2, expMod:.03 },
+    desc:'学問と政治で藩を治める。内政・教育イベントで有利な選択肢が出る。毎月民心がわずかに上昇する。' },
+  { key:'gochoku',  label:'剛直',     t:'neutral',  ef:{ prestigeD:.15 },
+    desc:'正直で曲がったことが嫌い。威信が保たれやすく、幕府への誠実な対応で特別な選択肢が出る。' },
+  { key:'kokatsu',  label:'狡猾',     t:'neutral',  ef:{ minshinD:-.05, prestigeD:.1 },
+    desc:'策略を好む。謀略・工作系イベントで特別な選択肢が出る。' },
+  { key:'hakushiki',label:'博識',     t:'positive', ef:{ rankakuD:.12 },
+    desc:'広い知識を持つ。蘭学知識が蓄積されやすく、技術・治水・農業イベントで有利な選択肢が出る。' },
+  { key:'goho',     label:'豪放',     t:'neutral',  ef:{ minshinD:.15, expMod:.05 },
+    desc:'大らかで豪快な性格。民心が自然と上昇するが、支出も増えやすい。宴席・交流系イベントで効果が増す。' },
 ];
 
 // ========================== STATE ==========================
@@ -645,6 +794,10 @@ function newState(domId) {
     kaiyakuWarned:false,// 改易通告イベント発生済み
     prevStats:{minshin:dom.startMinshin, bakufu:dom.startBakufu, money:dom.startMoney},
     yearRecord:[],      // 年次記録
+    // --- 城下町開発 ---
+    construction: null,           // { facilityId, monthsLeft, totalMonths }
+    builtFacilities: [],          // 完成済み施設IDの配列
+    facEffects: { incomeBonus:0, minshinCap:0, militaryCap:0, disasterMod:0, rankakuSpeedBonus:0 },
     events:[], usedHist:new Set(), turns:0, gameOver:false,
   };
 }
@@ -672,6 +825,7 @@ function calcIncome() {
   if(pol.finance===1) incMod+=.15;
   if(pol.shogunate===1) incMod+=.05;
   incMod+=(gs.incomeBonus||0);
+  incMod+=(gs.facEffects&&gs.facEffects.incomeBonus||0);
   const base=gs.koku*0.4/12*incMod;
   const prod=gs.dom.products.length*200;
   const lordMod=1+(gs.lord.politics-10)*.01;
@@ -706,6 +860,7 @@ function processTurn() {
   if(gs.money<0){ const b=Math.abs(gs.money)+300; gs.saikai+=b; gs.money=0; addEvent('info','借財増加',`資金不足により大坂商人から${fmt(b)}を借り入れた。`); }
   applyStats();
   handleSankin();
+  processConstruction();
   if(Math.random()<.22) triggerRandom();
   checkHist();
   checkKaiyaku();
@@ -725,7 +880,7 @@ function applyStats() {
   if(pol.finance===0) md-=.3; if(pol.finance===1) md+=.3;  // 0.5→0.3に軽減
   if(pol.domestic===1) md+=.3;
   for(const t of gs.lord.traits) if(t.ef.minshinD) md+=t.ef.minshinD;
-  gs.minshin=clamp(gs.minshin+md,0,100);
+  gs.minshin=clamp(gs.minshin+md,0,100+(gs.facEffects&&gs.facEffects.minshinCap||0));
 
   // 幕府心象: 財政破綻・赤字が続くと幕府の評判も下がる
   let bd=(50-gs.bakufu)*.003;
@@ -740,11 +895,12 @@ function applyStats() {
   let rd=pol.education===1?1.8:0;
   if(gs.year>1750) rd+=.2;
   for(const t of gs.lord.traits) if(t.ef.rankakuD) rd+=t.ef.rankakuD;
+  rd+=(gs.facEffects&&gs.facEffects.rankakuSpeedBonus||0); // 藩校による加速
   gs.rankaku=clamp(gs.rankaku+rd,0,100);
 
   let mld=(pol.military===1?1.5:.3);
   for(const t of gs.lord.traits) if(t.ef.milD) mld+=t.ef.milD;
-  gs.military=clamp(gs.military+mld*.08,0,100);
+  gs.military=clamp(gs.military+mld*.08,0,100+(gs.facEffects&&gs.facEffects.militaryCap||0));
 
   let pd=(50-gs.prestige)*.005;
   if(pol.education===0) pd+=.3; if(pol.shogunate===0) pd+=.5;
@@ -786,12 +942,15 @@ function handleSankin() {
   }
 }
 
+const DISASTER_IDS=['flood','drought','earthquake','epidemic','fire'];
 function triggerRandom() {
   const pool=RND_EVENTS.filter(e=>!e.cond||e.cond(gs));
-  const total=pool.reduce((s,e)=>s+e.w,0);
+  const disasterMult=Math.max(0.1,1+(gs.facEffects&&gs.facEffects.disasterMod||0));
+  const adjW=e=>DISASTER_IDS.includes(e.id)?e.w*disasterMult:e.w;
+  const total=pool.reduce((s,e)=>s+adjW(e),0);
   let r=Math.random()*total;
   for(const e of pool){
-    r-=e.w;
+    r-=adjW(e);
     if(r<=0){
       applyEf(e.ef);
       if(e.lordHpD) gs.lord.health+=e.lordHpD;
@@ -831,14 +990,20 @@ function applyEf(ef) {
 }
 
 function showChoice(title, text, choices) {
-  pendingChoice = choices;
+  // トレイット要件があり、藩主がそのトレイットを持たない選択肢を除外
+  const filtered = choices.filter(c =>
+    !c.traitReq || (gs && gs.lord && gs.lord.traits.some(t => t.key === c.traitReq))
+  );
+  pendingChoice = filtered;
   document.getElementById('cm-title').textContent = title;
   document.getElementById('cm-text').textContent = text;
-  document.getElementById('cm-choices').innerHTML = choices.map((c,i)=>`
-    <button class="choice-btn ${c.cls||''}" onclick="resolveChoice(${i})">
+  document.getElementById('cm-choices').innerHTML = filtered.map((c,i)=>{
+    const isTrait = !!c.traitReq;
+    return `<button class="choice-btn ${c.cls||''}${isTrait?' choice-trait':''}" onclick="resolveChoice(${i})">
       <div class="clabel">${c.label}</div>
       <div class="ceffect">${c.effect||c.desc||''}</div>
-    </button>`).join('');
+    </button>`;
+  }).join('');
   document.getElementById('choice-modal').style.display='flex';
   document.getElementById('btn-turn').disabled=true;
 }
@@ -894,6 +1059,99 @@ function recordYear() {
     year:gs.year, koku:gs.koku, money:gs.money,
     minshin:Math.floor(gs.minshin), bakufu:Math.floor(gs.bakufu)
   });
+}
+
+// ========================== 城下町建設 ==========================
+function processConstruction() {
+  if(!gs.construction) return;
+  gs.construction.monthsLeft--;
+  if(gs.construction.monthsLeft>0) return;
+  const fac=FACILITIES.find(f=>f.id===gs.construction.facilityId);
+  if(!fac) { gs.construction=null; return; }
+  // 恒久効果を適用
+  for(const [k,v] of Object.entries(fac.perm||{})){
+    if(k==='kokuMod'){
+      gs.koku=Math.floor(gs.koku*(1+v));
+    } else if(k==='rankakuBonus'){
+      gs.rankaku=clamp(gs.rankaku+v,0,100);
+      gs.facEffects.rankakuSpeedBonus=(gs.facEffects.rankakuSpeedBonus||0)+0.15; // 月次上昇速度+0.15
+    } else {
+      gs.facEffects[k]=(gs.facEffects[k]||0)+v;
+    }
+  }
+  gs.builtFacilities.push(fac.id);
+  gs.construction=null;
+  addEvent('good',`${fac.icon}${fac.name}が完成！`,fac.completeMsg||fac.desc);
+}
+
+function openFacilityModal(){
+  if(!gs||gs.gameOver) return;
+  const html=FACILITIES.map(f=>{
+    const ok=!f.cond||f.cond(gs);
+    if(!ok) return ''; // 条件外は非表示
+    const built=gs.builtFacilities.includes(f.id);
+    const building=gs.construction&&gs.construction.facilityId===f.id;
+    const busy=!!gs.construction&&!building;
+    const afford=gs.money>=f.cost;
+    const canBuild=!built&&!busy&&afford&&!building;
+    return `<div class="fac-card${built?' fac-built':''}${!afford&&!built?' fac-noafford':''}">
+      <div class="fac-head">
+        <span class="fac-icon">${f.icon}</span>
+        <span class="fac-name">${f.name}</span>
+        ${built?'<span class="fac-tag fac-tag-done">完成済</span>':''}
+        ${building?'<span class="fac-tag fac-tag-wip">建設中</span>':''}
+      </div>
+      <div class="fac-desc">${f.desc}</div>
+      <div class="fac-foot">
+        <span class="fac-cost">${fmt(f.cost)} ／ ${f.months}ヶ月</span>
+        ${!built&&!building?`<button class="btn-build" onclick="startFacility('${f.id}')" ${canBuild?'':'disabled'}>${afford?(busy?'他が建設中':'着工する'):'資金不足'}</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('fac-modal-content').innerHTML=html||'<p style="color:var(--ink-light);font-size:.8rem">現在建設可能な施設はありません。</p>';
+  document.getElementById('fac-modal').style.display='flex';
+}
+
+function closeFacilityModal(){
+  document.getElementById('fac-modal').style.display='none';
+}
+
+function startFacility(id){
+  const fac=FACILITIES.find(f=>f.id===id);
+  if(!fac||gs.builtFacilities.includes(id)||gs.construction) return;
+  if(gs.money<fac.cost){ notif('資金が不足しています'); return; }
+  gs.money-=fac.cost;
+  gs.construction={ facilityId:id, monthsLeft:fac.months, totalMonths:fac.months };
+  addEvent('info',`${fac.icon}${fac.name}着工`,`建設費${fmt(fac.cost)}を投じて着工した。${fac.months}ヶ月後に完成予定。`);
+  closeFacilityModal();
+  renderAll();
+  notif(`${fac.name}の建設を開始しました`);
+}
+
+function renderFacilities(){
+  const el=document.getElementById('facility-status');
+  if(!el) return;
+  let html='';
+  if(gs.construction){
+    const fac=FACILITIES.find(f=>f.id===gs.construction.facilityId);
+    const pct=Math.round((1-gs.construction.monthsLeft/gs.construction.totalMonths)*100);
+    html=`<div class="fac-progress">
+      <div style="font-size:.75rem;margin-bottom:.3rem">${fac.icon} <strong>${fac.name}</strong> 建設中</div>
+      <div class="fac-prog-bar"><div class="fac-prog-fill" style="width:${pct}%"></div></div>
+      <div style="font-size:.68rem;color:var(--ink-light);margin-top:.2rem">残り${gs.construction.monthsLeft}ヶ月 (${pct}%完成)</div>
+    </div>`;
+  }
+  if(gs.builtFacilities.length>0){
+    const icons=gs.builtFacilities.map(id=>{
+      const f=FACILITIES.find(x=>x.id===id);
+      return f?`<span class="fac-chip" title="${f.name}">${f.icon}${f.name}</span>`:'';
+    }).join('');
+    html+=`<div class="fac-chips">${icons}</div>`;
+  }
+  if(!gs.construction&&gs.builtFacilities.length===0){
+    html='<div style="font-size:.73rem;color:var(--ink-light);margin-bottom:.4rem">まだ施設は建設されていません。</div>';
+  }
+  el.innerHTML=html;
 }
 
 // トレンド矢印
@@ -989,7 +1247,7 @@ function phase(y){
 // ========================== RENDER ==========================
 function renderAll(){
   if(!gs) return;
-  renderHeader(); renderLeft(); renderRight(); renderEvents(); renderFinance(); renderPolicies(); renderActions();
+  renderHeader(); renderLeft(); renderRight(); renderEvents(); renderFinance(); renderPolicies(); renderActions(); renderFacilities();
   const blocked=!gs||gs.gameOver||!!pendingChoice;
   document.getElementById('btn-turn').disabled=blocked;
   document.getElementById('btn-skip').disabled=blocked;
@@ -1017,7 +1275,7 @@ function renderLeft(){
   document.getElementById('lord-sankin').innerHTML=gs.sankin.inEdo?'<span class="sbadge sb-edo">江戸在府中</span>':'<span class="sbadge sb-kuni">国許在国</span>';
   document.getElementById('ability-grid').innerHTML=[['政治',L.politics],['学識',L.gakushiki],['文化',L.culture],['統率',L.command],['健康',Math.floor(L.health)]]
     .map(([l,v])=>`<div class="aitem"><div class="al">${l}</div><div class="av">${v}/20</div></div>`).join('');
-  document.getElementById('trait-list').innerHTML=L.traits.map(t=>`<span class="tchip t${t.t==='positive'?'p':t.t==='negative'?'n':'nu'}">${t.label}</span>`).join('');
+  document.getElementById('trait-list').innerHTML=L.traits.map(t=>`<span class="tchip t${t.t==='positive'?'p':t.t==='negative'?'n':'nu'}" title="${t.desc||t.label}">${t.label}</span>`).join('');
   document.getElementById('domain-info').innerHTML=`
     <div class="frow"><div class="flabel">石高</div><div>${fmtK(gs.koku)}</div></div>
     <div class="frow"><div class="flabel">地方</div><div>${gs.dom.region}</div></div>
@@ -1219,7 +1477,8 @@ function selDom(id){
 function startGame(){
   if(!selDomain) return;
   gs=newState(selDomain);
-  addEvent('history','ゲーム開始',`${gs.year}年（${era(gs.year)}）、${gs.dom.name}の藩政が始まった。${gs.dom.desc}。藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。`);
+  const traitStr = gs.lord.traits.map(t=>t.label).join('・');
+  addEvent('history','ゲーム開始',`${gs.year}年（${era(gs.year)}）、${gs.dom.name}の藩政が始まった。${gs.dom.desc}。藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。性格：${traitStr}。`);
   document.getElementById('title-screen').style.display='none';
   document.getElementById('game-screen').style.display='flex';
   renderAll();
