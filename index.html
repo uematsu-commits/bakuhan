@@ -395,6 +395,11 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
         <h4>◆ 幕府関係</h4>
         <div id="bakufu-status" style="font-size:.78rem"></div>
       </div>
+      <div class="psec" id="mil-section">
+        <h4>◆ 実兵力</h4>
+        <div class="frow"><div class="flabel">兵数</div><div id="mil-troops" style="font-weight:bold">-</div></div>
+        <div class="frow" style="border:none"><div class="flabel">装備</div><div id="mil-equip">-</div></div>
+      </div>
       <div class="psec" id="faction-section">
         <h4>◆ 家中の緊張度</h4>
         <div id="faction-bars"></div>
@@ -797,6 +802,8 @@ const SPECIAL_ACTIONS = [
     fn:()=>{ gs.money-=1500; gs.lord.health=Math.min(20,gs.lord.health+5); addEvent('good','療養','名医を招き藩主の健康が回復した。'); } },
   { id:'recruit', icon:'🗡️', title:'兵の徴集', desc:'農民から兵を徴集し軍事力を増強する。民心が微減する。', cost:'2000両', cond:g=>g.money>=2000&&g.military<90,
     fn:()=>{ gs.money-=2000; gs.military=clamp(gs.military+10,0,100); gs.minshin=clamp(gs.minshin-3,0,100); addEvent('info','兵の徴集','農村から兵を徴集し軍事力が増強された。'); } },
+  { id:'yosiki', icon:'🔫', title:'洋式調練', desc:'西洋式の兵術を導入し軍の装備・練度を近代化する。蘭学30以上が必要。洋式装備は最大Lv3まで。', cost:'5000両', cond:g=>g.rankaku>=30&&g.money>=5000&&g.mil&&g.mil.equipment<3,
+    fn:()=>{ gs.money-=5000; gs.mil.equipment++; gs.military=clamp(gs.military+15,0,100); syncMilitary(); addEvent('good','洋式調練',`西洋式の兵術を導入した。装備が洋式Lv${gs.mil.equipment}に向上し戦力が増強された。`); } },
 ];
 
 // ========================== FACILITIES ==========================
@@ -1154,6 +1161,9 @@ function newState(domId) {
     retainers: makeRetainers(dom),// 名前付き家臣リスト
     // --- 家中派閥 ---
     factionTension:{ budan:30, bunchi:30, kenyaku:30, sekkyoku:30 },
+    // --- 軍事力の実体化 ---
+    mil: { troops:0, equipment:0 }, // equipment: 0=旧式 1〜3=洋式Lv
+    tobafushimiDone: false,
     // --- イベントチェーン ---
     activeChains: [],             // [{ chainId, stepId, triggerTurn }]
     chainCooldowns: {},           // { chainId: lastTriggerTurn }
@@ -1170,6 +1180,7 @@ function makeLord(dom) {
     age:rng(25,42),
     politics:rng(6,18), gakushiki:rng(4,16), culture:rng(4,16), command:rng(4,16), health:rng(10,18),
     traits,
+    generation:1,
     emoji:['🧑','👨','🧔','👴'][rng(0,3)],
   };
 }
@@ -1290,9 +1301,22 @@ function applyStats() {
 
   if(gs.month===12){
     gs.lord.age++;
-    if(gs.lord.age>48) gs.lord.health=Math.max(0,gs.lord.health-.5);
+    // 健康悪化曲線: 50/65/75歳で段階的に加速
+    const age=gs.lord.age;
+    const decay = age>=75?1.5 : age>=65?1.0 : age>=50?0.5 : 0;
+    if(decay>0) gs.lord.health=Math.max(0,gs.lord.health-decay);
     if(gs.heir&&gs.heirAge!==null) gs.heirAge++;
   }
+  syncMilitary();
+}
+
+// 石高・軍事スコアから実兵数を算出
+function syncMilitary() {
+  if(!gs.mil) gs.mil={troops:0,equipment:0};
+  const base=Math.floor(gs.koku/40);  // 万石あたり約250名
+  const bonus=Math.floor(gs.military*1.2);
+  const eqBonus=gs.mil.equipment*30;  // 洋式Lv×30名相当の戦力上乗せ
+  gs.mil.troops=base+bonus+eqBonus;
 }
 
 function handleSankin() {
@@ -1385,6 +1409,7 @@ function showChoice(title, text, choices) {
 function resolveChoice(idx) {
   const c=pendingChoice[idx];
   applyEf(c.ef);
+  if(c.postFn) c.postFn();
   // チェーンの次ステップをスケジュール
   if(c.chainNext && c.chainNext.stepId) {
     const curTurn=gs.year*12+gs.month;
@@ -1815,20 +1840,95 @@ function showSummary(icon, title, desc) {
   document.getElementById('summary-modal').style.display='flex';
 }
 
+// ========================== SUCCESSION ==========================
+function performSuccession() {
+  const old=`${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）`;
+  const gen=(gs.lord.generation||1)+1;
+  const newLord=makeLord(gs.dom);
+  newLord.age=Math.max(gs.heirAge||18,1);
+  newLord.generation=gen;
+  const isYoung=newLord.age<18;
+
+  // 世代交代コスト（葬儀・就任費）
+  gs.money=Math.max(0,gs.money-2000);
+  gs.prestige=clamp(gs.prestige-5,0,100);
+
+  // 家臣団の loyalty リセット（-10）
+  if(gs.retainers){ gs.retainers.forEach(r=>{ r.loyalty=clamp(r.loyalty-10,20,100); }); }
+
+  gs.lord=newLord;
+  gs.heirAge=null; gs.heir=false;
+
+  if(isYoung){
+    // 幼君ペナルティ
+    gs.minshin=clamp(gs.minshin-10,0,100);
+    gs.bakufu=clamp(gs.bakufu-10,0,100);
+    if(gs.factionTension) gs.factionTension.budan=clamp(gs.factionTension.budan+15,0,100);
+    addEvent('critical','幼君就任',`第${gen}代藩主 ${gs.lord.surname} ${gs.lord.given}はわずか${gs.lord.age}歳での就任。家中に動揺が走り幕府の監視も強まった。`);
+  } else {
+    addEvent('critical','藩主交代',`${old}が薨去した。第${gen}代藩主 ${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が藩政を引き継ぐ。`);
+  }
+}
+
 function checkGameOver() {
   if(gs.minshin<=0){ showSummary('⚔️','大一揆による御家取り潰し','民心が極限まで低下し大規模な一揆が勃発。幕府から改易を命じられた。'); return; }
   if(gs.bakufu<=5){ showSummary('🏯','幕府命令による改易','幕府との関係が最悪となり改易の命が下った。領地はすべて没収された。'); return; }
   if(gs.saikai>gs.koku*3.5){ showSummary('💸','財政破綻','大坂借財が石高の3.5倍を超え財政が完全に破綻した。藩の運営が不可能となった。'); return; }
   if(gs.lord.health<=0||gs.lord.age>83){
-    if(!gs.heir){ showSummary('⚠️','御家断絶 〜無嗣断絶〜','藩主が世を去ったが世継ぎが定まっていなかった。幕府により無嗣断絶とされた。'); return; }
-    const old=`${gs.lord.surname} ${gs.lord.given}`;
-    gs.lord=makeLord(gs.dom); gs.lord.age=gs.heirAge||18; gs.heirAge=null; gs.heir=false;
-    addEvent('critical','藩主交代',`${old}が薨去した。世継ぎが藩政を引き継ぐ。新藩主は${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）。`);
+    if(!gs.heir){
+      if(!gs.heirCrisisShown){
+        gs.heirCrisisShown=true;
+        // 藩主危篤 & 後継者なし → 猶予イベント
+        gs.lord.health=1; // 危篤状態で維持
+        showChoice('⚠️ 御家存続の危機',
+          `${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が重篤に陥った。世継ぎが定まっておらず、このままでは無嗣断絶となる。`,
+          [
+            { label:'急ぎ養子縁組を進める（5000両）', cls:'c-good', ef:{moneyD:0},
+              postFn:()=>{ if(gs.money>=5000){ gs.money-=5000; gs.heir=true; gs.heirAge=rng(8,18); gs.lord.health=1; gs.heirCrisisShown=false; addEvent('good','養子縁組成立','急ぎ縁組が成立し世継ぎが定まった。'); } else { showSummary('⚠️','御家断絶','資金が尽き縁組も成らず、藩主の薨去とともに御家は断絶した。'); } } },
+            { label:'幕府に養子縁組の嘆願書を出す', cls:'c-warn', ef:{bakufuD:-15},
+              postFn:()=>{ gs.heir=true; gs.heirAge=rng(12,22); gs.lord.health=1; gs.heirCrisisShown=false; addEvent('good','嘆願成立','幕府の許可を得て養子縁組が成立した。幕府への貸しが増えた。'); } },
+            { label:'断絶を受け入れる', cls:'c-danger', ef:{},
+              postFn:()=>{ showSummary('⚠️','御家断絶 〜無嗣断絶〜','藩主が世を去ったが世継ぎが定まっていなかった。幕府により無嗣断絶とされた。'); } },
+          ]
+        );
+      } else {
+        showSummary('⚠️','御家断絶 〜無嗣断絶〜','藩主が世を去ったが世継ぎが定まっていなかった。幕府により無嗣断絶とされた。');
+      }
+      return;
+    }
+    performSuccession();
+  }
+  // 鳥羽・伏見の戦い（1868年1月）
+  if(gs.year===1868&&gs.month===1&&!gs.tobafushimiDone){
+    gs.tobafushimiDone=true;
+    const milEq=gs.mil?gs.mil.equipment:0;
+    const troopsDisp=gs.mil?`実兵力${gs.mil.troops.toLocaleString()}名・洋式装備Lv${milEq}`:'旧式装備';
+    showChoice('🏯 鳥羽・伏見の戦い',
+      `慶応4年1月、薩摩・長州の官軍と旧幕府軍が鳥羽・伏見で激突した。${gs.dom.name}はいかなる決断を下すか？（${troopsDisp}）`,
+      [
+        { label:'新政府軍（官軍）として参陣する', cls:'c-good', ef:{tobakuD:20},
+          postFn:()=>{
+            const pw=(gs.military||0)+(milEq*15);
+            if(pw>=70) addEvent('good','鳥羽伏見参戦（官軍・奮戦）','官軍として果敢に戦い武功を挙げた。新政府内での発言力が増した。');
+            else addEvent('info','鳥羽伏見参戦（官軍）','官軍として参陣したが戦力は限定的だった。新政府への帰順が認められた。');
+          }
+        },
+        { label:'旧幕府方に与する', cls:'c-danger', ef:{tobakuD:-25, military:-15, bakufuD:5},
+          postFn:()=>{ addEvent('bad','鳥羽伏見参戦（幕府方）','幕府方として戦ったが官軍に敗れた。戦後の処分が懸念される。'); }
+        },
+        { label:'恭順・静観する（戦闘回避）', cls:'c-warn', ef:{minshinD:-8, tobakuD:5},
+          postFn:()=>{ addEvent('info','鳥羽伏見 静観','戦を避けて静観した。藩兵の被害は避けられたが家中の士気が低下した。'); }
+        },
+      ]
+    );
+    return;
   }
   if(gs.year>=1868){
-    const ending = gs.tobaku>65 ? '倒幕派として明治新政府を支持し、廃藩置県を経て新しい時代へと歩み出した。' :
-                   gs.tobaku<35 ? '佐幕派として最後まで徳川を支えたが、幕府の崩壊とともに新時代に飲み込まれた。' :
-                   '激動の幕末を中立的に乗り越え、新政府のもとで藩の存続を図った。';
+    const milEq=gs.mil?gs.mil.equipment:0;
+    const milNote=milEq>=2?'洋式近代化軍を誇り、':'';
+    const ending = gs.tobaku>65 ? `${milNote}倒幕派として明治新政府を支持し、廃藩置県を経て新しい時代へと歩み出した。` :
+                   gs.tobaku<35 ? `${milNote}佐幕派として最後まで徳川を支えたが、幕府の崩壊とともに新時代に飲み込まれた。` :
+                   `${milNote}激動の幕末を中立的に乗り越え、新政府のもとで藩の存続を図った。`;
     showSummary('🌅','幕藩体制の終焉',`大政奉還により幕藩体制は終わりを告げた。${gs.dom.name}は${gs.year-1603}年間の歴史を刻んだ。${ending}`);
   }
 }
@@ -1886,7 +1986,8 @@ function renderLeft(){
   const L=gs.lord;
   document.getElementById('lord-portrait').textContent=L.emoji;
   document.getElementById('lord-name').textContent=`${L.surname} ${L.given}`;
-  document.getElementById('lord-age').textContent=`${L.age}歳 ／ 健康${Math.max(0,Math.floor(L.health))}`;
+  const genLabel=L.generation>1?` （第${L.generation}代）`:'';
+  document.getElementById('lord-age').textContent=`${L.age}歳${genLabel} ／ 健康${Math.max(0,Math.floor(L.health))}`;
   document.getElementById('lord-sankin').innerHTML=gs.sankin.inEdo?'<span class="sbadge sb-edo">江戸在府中</span>':'<span class="sbadge sb-kuni">国許在国</span>';
   document.getElementById('ability-grid').innerHTML=[['政治',L.politics],['学識',L.gakushiki],['文化',L.culture],['統率',L.command],['健康',Math.floor(L.health)]]
     .map(([l,v])=>`<div class="aitem"><div class="al">${l}</div><div class="av">${v}/20</div></div>`).join('');
@@ -1928,6 +2029,17 @@ function renderRight(){
     const lbl=gs.tobaku>70?'倒幕色が強い':gs.tobaku>55?'やや倒幕寄り':gs.tobaku<30?'佐幕色が強い':gs.tobaku<45?'やや佐幕寄り':'中立';
     document.getElementById('tobaku-label').textContent=lbl;
   } else { tSec.style.display='none'; }
+
+  // 実兵力表示
+  const milSec=document.getElementById('mil-section');
+  if(milSec && gs.mil){
+    const eqLabels=['旧式','洋式Lv1','洋式Lv2','洋式Lv3'];
+    const eq=Math.min(gs.mil.equipment,3);
+    const eqColor=eq>=2?'var(--green)':eq>=1?'var(--wood)':'var(--ink-light)';
+    document.getElementById('mil-troops').textContent=`${gs.mil.troops.toLocaleString()}名`;
+    const eqEl=document.getElementById('mil-equip');
+    eqEl.textContent=eqLabels[eq]; eqEl.style.color=eqColor;
+  }
 
   // 家中派閥テンションバー
   const fbEl=document.getElementById('faction-bars');
