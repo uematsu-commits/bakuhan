@@ -171,6 +171,28 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
 .choice-btn.choice-trait .clabel::before{content:'★ ';color:var(--gold);font-size:.75rem}
 .choice-btn.choice-trait:hover{background:rgba(201,162,39,.18)}
 
+/* RETAINER */
+.retainer-modal-box{background:var(--paper);border:3px solid var(--gold);border-radius:8px;padding:1.3rem;max-width:420px;width:94%;max-height:80vh;overflow-y:auto}
+.post-slot{display:flex;align-items:center;gap:.35rem;padding:.3rem .45rem;border:1px solid var(--border);border-radius:4px;margin-bottom:.3rem;cursor:pointer;font-size:.75rem;transition:background .15s;background:rgba(255,255,255,.5)}
+.post-slot:hover{background:rgba(201,162,39,.15);border-color:var(--gold)}
+.post-empty{opacity:.65;border-style:dashed}
+.post-icon{font-size:1rem;flex-shrink:0}
+.post-label{color:var(--ink-light);width:52px;flex-shrink:0;font-size:.7rem}
+.post-name{flex:1;font-weight:bold}
+.post-stat{font-size:.7rem;color:var(--indigo-light);margin-left:auto}
+.post-loyalty{font-size:.65rem;margin-left:.25rem;flex-shrink:0}
+.ret-unassigned{margin-top:.5rem;display:flex;flex-wrap:wrap;gap:.25rem}
+.ret-unassigned-label{font-size:.65rem;color:var(--ink-light);width:100%;margin-bottom:.2rem}
+.ret-chip{font-size:.7rem;padding:2px 6px;background:rgba(255,255,255,.6);border:1px solid var(--border);border-radius:3px;cursor:pointer;transition:background .15s;display:inline-flex;align-items:center;gap:.2rem}
+.ret-chip:hover{background:rgba(201,162,39,.2);border-color:var(--gold)}
+.ret-chip-stat{font-size:.65rem;color:var(--indigo-light)}
+.ret-chip-loy{font-size:.65rem}
+.rm-row{display:flex;align-items:center;gap:.5rem;padding:.45rem .6rem;border:1px solid var(--border);border-radius:4px;margin-bottom:.3rem;cursor:pointer;font-size:.78rem;background:rgba(255,255,255,.6);transition:background .15s}
+.rm-row:hover{background:rgba(201,162,39,.2)}
+.rm-assigned{opacity:.7;background:rgba(42,82,152,.05)}
+.rm-unassign{color:var(--red);border-color:var(--red)}
+.rm-unassign:hover{background:rgba(139,26,26,.1)}
+
 /* FACILITY */
 .btn-fac{width:100%;margin-top:.4rem;background:var(--indigo);color:#fff;border:none;padding:.4rem;font-size:.75rem;font-family:inherit;cursor:pointer;border-radius:3px;transition:all .2s}
 .btn-fac:hover{background:var(--indigo-light)}
@@ -318,6 +340,10 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
         <h4>◆ 世継ぎ</h4>
         <div id="heir-info" style="font-size:.78rem"></div>
       </div>
+      <div class="psec">
+        <h4>◆ 家臣団 <span style="font-size:.65rem;color:var(--ink-light)">（役職をクリックで変更）</span></h4>
+        <div id="retainer-panel"></div>
+      </div>
     </div>
 
     <!-- CENTER: Events / Policies / Actions / Finance -->
@@ -404,6 +430,18 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
     </div>
     <div style="text-align:center;margin-top:1.2rem">
       <button class="btn-primary" onclick="location.reload()">最初から</button>
+    </div>
+  </div>
+</div>
+
+<!-- RETAINER MODAL -->
+<div id="retainer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:900;align-items:center;justify-content:center">
+  <div class="retainer-modal-box">
+    <h3 id="rm-title" style="color:var(--gold);font-size:1rem;margin-bottom:.3rem">役職の割り当て</h3>
+    <p id="rm-desc" style="font-size:.73rem;color:var(--ink-light);margin-bottom:.8rem"></p>
+    <div id="rm-content"></div>
+    <div style="text-align:center;margin-top:.8rem">
+      <button class="btn-primary" onclick="closeRetainerModal()">閉じる</button>
     </div>
   </div>
 </div>
@@ -661,6 +699,81 @@ const RND_EVENTS = [
   { id:'trade_profit', title:'開港地からの交易利益', text:'西洋との交易で珍しい品物と利益が領内に入ってきた。', type:'good', w:7, cond:g=>g.year>=1858, ef:{ moneyD:2000, rankakuD:5 } },
   { id:'sonnojoi', title:'脱藩浪士の問題', text:'尊王攘夷を掲げた浪士が脱藩し各地で問題を起こしている。', type:'bad', w:8, cond:g=>g.year>=1860, ef:{ minshinD:-3, bakufuD:-3, tobakuD:5 } },
 ];
+
+// ========================== RETAINER DATA ==========================
+const POST_INFO = {
+  karo:  { label:'家老',     icon:'📜', stat:'seiji',    desc:'政治力が民心回復を助ける。最高の政治家を据えよ。' },
+  kanjo: { label:'勘定奉行', icon:'💴', stat:'sanjutsu', desc:'算術力が収入効率を高める。算術に長けた者を。' },
+  gunji: { label:'軍事奉行', icon:'⚔️', stat:'buryaku',  desc:'武略力が軍事力成長を助ける。武に秀でた者を。' },
+  gaiko: { label:'外交担当', icon:'🎌', stat:'gaiko',    desc:'外交力が幕府心象の改善に寄与する。外交巧者を。' },
+};
+
+const RETAINER_DATA = {
+  tosa:[
+    { name:'吉田東洋',   post:'karo',  seiji:8,sanjutsu:5,buryaku:4,gaiko:6, faction:'bunchi',  loyalty:80, age:42 },
+    { name:'武市瑞山',   post:null,    seiji:5,sanjutsu:4,buryaku:8,gaiko:5, faction:'budan',   loyalty:70, age:28 },
+    { name:'後藤象二郎', post:null,    seiji:6,sanjutsu:7,buryaku:4,gaiko:7, faction:'sekkyoku',loyalty:75, age:25 },
+    { name:'岡田以蔵',   post:'gunji', seiji:3,sanjutsu:3,buryaku:9,gaiko:2, faction:'budan',   loyalty:65, age:22 },
+    { name:'馬詰義平',   post:'kanjo', seiji:4,sanjutsu:8,buryaku:3,gaiko:4, faction:'kenyaku', loyalty:72, age:38 },
+    { name:'深尾鼎',     post:'gaiko', seiji:6,sanjutsu:5,buryaku:4,gaiko:7, faction:'bunchi',  loyalty:77, age:35 },
+  ],
+  satsuma:[
+    { name:'調所広郷',   post:'karo',  seiji:7,sanjutsu:9,buryaku:4,gaiko:6, faction:'sekkyoku',loyalty:82, age:45 },
+    { name:'西郷隆盛',   post:null,    seiji:8,sanjutsu:4,buryaku:9,gaiko:6, faction:'budan',   loyalty:70, age:22 },
+    { name:'大久保利通', post:'gaiko', seiji:9,sanjutsu:7,buryaku:5,gaiko:9, faction:'sekkyoku',loyalty:78, age:20 },
+    { name:'小松帯刀',   post:'kanjo', seiji:7,sanjutsu:8,buryaku:5,gaiko:8, faction:'bunchi',  loyalty:80, age:24 },
+    { name:'村田新八',   post:'gunji', seiji:5,sanjutsu:4,buryaku:8,gaiko:5, faction:'budan',   loyalty:68, age:26 },
+    { name:'島津久光',   post:null,    seiji:6,sanjutsu:5,buryaku:5,gaiko:6, faction:'kenyaku', loyalty:75, age:30 },
+  ],
+  kaga:[
+    { name:'本多政均',   post:'karo',  seiji:7,sanjutsu:6,buryaku:5,gaiko:7, faction:'bunchi',  loyalty:80, age:48 },
+    { name:'奥村栄統',   post:'kanjo', seiji:5,sanjutsu:9,buryaku:3,gaiko:5, faction:'kenyaku', loyalty:74, age:40 },
+    { name:'横山隆平',   post:'gaiko', seiji:6,sanjutsu:5,buryaku:4,gaiko:8, faction:'bunchi',  loyalty:76, age:36 },
+    { name:'前田直信',   post:'gunji', seiji:4,sanjutsu:4,buryaku:8,gaiko:4, faction:'budan',   loyalty:70, age:32 },
+    { name:'津田玄蕃',   post:null,    seiji:7,sanjutsu:6,buryaku:5,gaiko:5, faction:'sekkyoku',loyalty:72, age:44 },
+    { name:'村井長嘉',   post:null,    seiji:5,sanjutsu:7,buryaku:4,gaiko:5, faction:'kenyaku', loyalty:68, age:38 },
+  ],
+  sendai:[
+    { name:'但木成行',   post:'karo',  seiji:8,sanjutsu:6,buryaku:5,gaiko:7, faction:'bunchi',  loyalty:82, age:46 },
+    { name:'玉虫左太夫', post:'gaiko', seiji:6,sanjutsu:5,buryaku:4,gaiko:8, faction:'sekkyoku',loyalty:74, age:30 },
+    { name:'遠藤文七郎', post:'kanjo', seiji:5,sanjutsu:8,buryaku:3,gaiko:5, faction:'kenyaku', loyalty:70, age:42 },
+    { name:'三好監物',   post:'gunji', seiji:4,sanjutsu:3,buryaku:9,gaiko:4, faction:'budan',   loyalty:67, age:35 },
+    { name:'片倉景長',   post:null,    seiji:6,sanjutsu:4,buryaku:7,gaiko:5, faction:'budan',   loyalty:72, age:28 },
+    { name:'伊達宗義',   post:null,    seiji:5,sanjutsu:6,buryaku:4,gaiko:6, faction:'bunchi',  loyalty:75, age:50 },
+  ],
+  mito:[
+    { name:'藤田幽谷',   post:'karo',  seiji:8,sanjutsu:5,buryaku:4,gaiko:7, faction:'bunchi',  loyalty:80, age:44 },
+    { name:'会沢正志斎', post:'gaiko', seiji:7,sanjutsu:5,buryaku:3,gaiko:8, faction:'bunchi',  loyalty:76, age:36 },
+    { name:'武田耕雲斎', post:'gunji', seiji:5,sanjutsu:4,buryaku:8,gaiko:4, faction:'budan',   loyalty:70, age:30 },
+    { name:'郡代長尾',   post:'kanjo', seiji:4,sanjutsu:8,buryaku:3,gaiko:5, faction:'kenyaku', loyalty:72, age:40 },
+    { name:'水戸信義',   post:null,    seiji:6,sanjutsu:5,buryaku:5,gaiko:5, faction:'sekkyoku',loyalty:68, age:35 },
+    { name:'大串重之',   post:null,    seiji:5,sanjutsu:6,buryaku:4,gaiko:4, faction:'kenyaku', loyalty:65, age:48 },
+  ],
+  hikone:[
+    { name:'長野主膳',   post:'karo',  seiji:8,sanjutsu:6,buryaku:5,gaiko:8, faction:'bunchi',  loyalty:82, age:42 },
+    { name:'村山外蔵',   post:'kanjo', seiji:5,sanjutsu:9,buryaku:3,gaiko:5, faction:'kenyaku', loyalty:75, age:38 },
+    { name:'岡本半介',   post:'gunji', seiji:4,sanjutsu:4,buryaku:8,gaiko:4, faction:'budan',   loyalty:70, age:34 },
+    { name:'三浦元龍',   post:'gaiko', seiji:6,sanjutsu:5,buryaku:3,gaiko:9, faction:'bunchi',  loyalty:78, age:40 },
+    { name:'石橋政右衛門',post:null,   seiji:6,sanjutsu:7,buryaku:4,gaiko:5, faction:'sekkyoku',loyalty:72, age:45 },
+    { name:'高島道元',   post:null,    seiji:5,sanjutsu:5,buryaku:6,gaiko:5, faction:'budan',   loyalty:68, age:30 },
+  ],
+};
+
+function makeRetainers(dom){
+  const base=RETAINER_DATA[dom.id];
+  if(!base) return [];
+  return base.map((r,i)=>({ id:`r${i}`, ...r, loyalty: r.loyalty+rng(-5,5) }));
+}
+
+function isFactionConflict(faction, pol){
+  if(faction==='budan'    && pol.military!==1) return true;
+  if(faction==='bunchi'   && pol.military===1) return true;
+  if(faction==='kenyaku'  && pol.finance!==0)  return true;
+  if(faction==='sekkyoku' && pol.finance!==1)  return true;
+  return false;
+}
+
+function getPostRetainer(post){ return gs.retainers&&gs.retainers.find(r=>r.post===post)||null; }
 
 // Special player-initiated actions
 const SPECIAL_ACTIONS = [
@@ -1033,6 +1146,8 @@ function newState(domId) {
     construction: null,           // { facilityId, monthsLeft, totalMonths }
     builtFacilities: [],          // 完成済み施設IDの配列
     facEffects: { incomeBonus:0, minshinCap:0, militaryCap:0, disasterMod:0, rankakuSpeedBonus:0 },
+    // --- 家臣・重臣 ---
+    retainers: makeRetainers(dom),// 名前付き家臣リスト
     // --- イベントチェーン ---
     activeChains: [],             // [{ chainId, stepId, triggerTurn }]
     chainCooldowns: {},           // { chainId: lastTriggerTurn }
@@ -1064,6 +1179,8 @@ function calcIncome() {
   if(pol.shogunate===1) incMod+=.05;
   incMod+=(gs.incomeBonus||0);
   incMod+=(gs.facEffects&&gs.facEffects.incomeBonus||0);
+  const kanjoR=getPostRetainer('kanjo');
+  if(kanjoR) incMod+=kanjoR.sanjutsu*0.004; // 算術10で+4%
   const base=gs.koku*0.4/12*incMod;
   const prod=gs.dom.products.length*200;
   const lordMod=1+(gs.lord.politics-10)*.01;
@@ -1083,6 +1200,8 @@ function calcExpense() {
   if(pol.education===1) expMod+=.05;
   if(pol.shogunate===0) expMod+=.12;
   for(const t of gs.lord.traits) if(t.ef.expMod) expMod+=t.ef.expMod;
+  const gunjiR=getPostRetainer('gunji');
+  if(gunjiR) expMod-=gunjiR.buryaku*0.002; // 武略10で軍事費-2%効率
   const base=gs.koku*0.25/12*expMod;
   const edo=gs.dom.baseKoku*0.018/12;
   const sankinCost=gs.sankin.inEdo?gs.dom.edoDist*100+600:0;
@@ -1099,6 +1218,7 @@ function processTurn() {
   applyStats();
   handleSankin();
   processConstruction();
+  applyRetainerLoyalty();
   processChains();
   if(!pendingChoice) {
     // チェーン始動 25% / 通常ランダム 22%（両方走らないよう分岐）
@@ -1123,6 +1243,8 @@ function applyStats() {
   if(pol.finance===0) md-=.3; if(pol.finance===1) md+=.3;  // 0.5→0.3に軽減
   if(pol.domestic===1) md+=.3;
   for(const t of gs.lord.traits) if(t.ef.minshinD) md+=t.ef.minshinD;
+  const karoR=getPostRetainer('karo');
+  if(karoR) md+=karoR.seiji*0.03; // 政治10で+0.3/月
   gs.minshin=clamp(gs.minshin+md,0,100+(gs.facEffects&&gs.facEffects.minshinCap||0));
 
   // 幕府心象: 財政破綻・赤字が続くと幕府の評判も下がる
@@ -1130,6 +1252,8 @@ function applyStats() {
   if(pol.shogunate===0) bd+=1.2; if(pol.shogunate===1) bd-=.4;
   if(pol.military===1) bd-=0.8;
   for(const t of gs.lord.traits) if(t.ef.bakufuD) bd+=t.ef.bakufuD;
+  const gaikoR=getPostRetainer('gaiko');
+  if(gaikoR) bd+=gaikoR.gaiko*0.02; // 外交10で+0.2/月
   // 財政難が続くと幕府の信頼も下がる
   if(gs.money===0) bd-=.3;
   if(gs.saikai>gs.koku*1.5) bd-=.5;
@@ -1313,6 +1437,31 @@ function recordYear() {
   });
 }
 
+// ========================== 家臣忠誠度処理 ==========================
+function applyRetainerLoyalty(){
+  if(!gs.retainers||!gs.retainers.length) return;
+  const pol=gs.policies;
+  for(const r of gs.retainers){
+    // 派閥と政策の整合性チェック
+    const conflict=isFactionConflict(r.faction, pol);
+    r.loyalty=clamp(r.loyalty+(conflict?-2:+1),0,100);
+    // 高能力で役職なしの家臣は不満が溜まりやすい
+    const cap=r.seiji+r.sanjutsu+r.buryaku+r.gaiko;
+    if(!r.post&&cap>=28) r.loyalty=clamp(r.loyalty-1,0,100);
+    // 年齢は12月にインクリメント
+    if(gs.month===12) r.age++;
+    // 忠誠度が極端に低い場合 → 離反イベント
+    if(r.loyalty<=5&&!r.defecting){
+      r.defecting=true;
+      addEvent('critical','家臣の離反',
+        `${r.name}の不満が限界に達し、召し放ちを申し出てきた。${r.post?`${POST_INFO[r.post].label}の職が空く。`:''}`);
+      r.post=null; // 役職を外す
+      gs.retainers=gs.retainers.filter(x=>x.id!==r.id); // 離反で退出
+      return; // 1ターン1件
+    }
+  }
+}
+
 // ========================== イベントチェーン処理 ==========================
 // チェーン選択肢を showChoice 形式に変換（chainNext を埋め込む）
 function wrapChainChoices(chainId, choices) {
@@ -1374,6 +1523,106 @@ function tryTriggerChain() {
     }
   }
   return false;
+}
+
+// ========================== 家臣UI ==========================
+const FACTION_LABEL={ budan:'武断派', bunchi:'文治派', kenyaku:'倹約派', sekkyoku:'積極派' };
+
+function renderRetainers(){
+  const el=document.getElementById('retainer-panel');
+  if(!el||!gs.retainers) return;
+  // 役職スロット
+  const posts=['karo','kanjo','gunji','gaiko'];
+  const slotHtml=posts.map(p=>{
+    const info=POST_INFO[p];
+    const r=getPostRetainer(p);
+    const loyColor=r?(r.loyalty>=60?'var(--green)':r.loyalty>=30?'var(--wood)':'var(--red)'):'#999';
+    return `<div class="post-slot${r?'':' post-empty'}" onclick="openRetainerModal('${p}')" title="${info.desc}">
+      <span class="post-icon">${info.icon}</span>
+      <span class="post-label">${info.label}</span>
+      <span class="post-name">${r?r.name:'（空席）'}</span>
+      ${r?`<span class="post-stat">${info.stat[0]==='s'?'政':info.stat==='sanjutsu'?'算':info.stat==='buryaku'?'武':'外'}${r[info.stat]}</span>`:''}
+      ${r?`<span class="post-loyalty" style="color:${loyColor}">忠${r.loyalty}</span>`:''}
+    </div>`;
+  }).join('');
+  // 未任用家臣
+  const unassigned=gs.retainers.filter(r=>!r.post);
+  const uHtml=unassigned.length?
+    `<div class="ret-unassigned-label">未任用（クリックで役職へ）</div>`+
+    unassigned.map(r=>{
+      const best=['seiji','sanjutsu','buryaku','gaiko'].reduce((b,k)=>r[k]>r[b]?k:b,'seiji');
+      const bLabel=best==='seiji'?'政':best==='sanjutsu'?'算':best==='buryaku'?'武':'外';
+      const loyColor=r.loyalty>=60?'var(--green)':r.loyalty>=30?'var(--wood)':'var(--red)';
+      return `<span class="ret-chip" onclick="openRetainerModal(null,'${r.id}')" title="${r.name}（${FACTION_LABEL[r.faction]}）忠誠:${r.loyalty}">
+        ${r.name}<span class="ret-chip-stat">${bLabel}${r[best]}</span><span class="ret-chip-loy" style="color:${loyColor}">忠${r.loyalty}</span>
+      </span>`;
+    }).join(''):'<span style="font-size:.7rem;color:var(--ink-light)">全員が役職に就いています</span>';
+  el.innerHTML=slotHtml+`<div class="ret-unassigned">${uHtml}</div>`;
+}
+
+let retainerModalTarget=null; // 対象 post or null
+
+function openRetainerModal(post, retId){
+  retainerModalTarget=post;
+  const title=post?`${POST_INFO[post].label}に任命する`:'どの役職に就けるか';
+  document.getElementById('rm-title').textContent=title;
+  if(post) document.getElementById('rm-desc').textContent=POST_INFO[post].desc;
+  else document.getElementById('rm-desc').textContent='';
+  // 対象 retainer が指定された場合はその家臣向けの役職選択
+  let html='';
+  if(retId){
+    const r=gs.retainers.find(x=>x.id===retId);
+    if(!r) return;
+    html=`<div style="font-size:.82rem;margin-bottom:.7rem">◆ <strong>${r.name}</strong>（${FACTION_LABEL[r.faction]}）を役職に就ける</div>`;
+    html+=Object.entries(POST_INFO).map(([p,info])=>{
+      const cur=getPostRetainer(p);
+      const stat=r[info.stat];
+      return `<div class="rm-row" onclick="assignRetainer('${r.id}','${p}')">
+        <span>${info.icon} ${info.label}</span>
+        <span>${info.stat==='seiji'?'政':info.stat==='sanjutsu'?'算':info.stat==='buryaku'?'武':'外'}${stat}</span>
+        <span style="font-size:.7rem;color:var(--ink-light)">${cur?`現在: ${cur.name}`:'（空席）'}</span>
+      </div>`;
+    }).join('');
+    html+=`<div class="rm-row rm-unassign" onclick="assignRetainer('${r.id}',null)">役職なし（外す）</div>`;
+  } else if(post){
+    // 投稿指定 → 家臣選択
+    const cur=getPostRetainer(post);
+    if(cur) html+=`<div class="rm-row rm-unassign" onclick="assignRetainer('${cur.id}',null)">✕ ${cur.name}を外す</div>`;
+    html+=gs.retainers.filter(r=>r.post!==post).map(r=>{
+      const info=POST_INFO[post];
+      const stat=r[info.stat];
+      const loyColor=r.loyalty>=60?'var(--green)':r.loyalty>=30?'var(--wood)':'var(--red)';
+      return `<div class="rm-row${r.post?' rm-assigned':''}" onclick="assignRetainer('${r.id}','${post}')">
+        <span>${r.name} <span style="font-size:.68rem;color:var(--ink-light)">${FACTION_LABEL[r.faction]}</span></span>
+        <span>${info.stat==='seiji'?'政':info.stat==='sanjutsu'?'算':info.stat==='buryaku'?'武':'外'}${stat}</span>
+        <span style="color:${loyColor};font-size:.7rem">忠${r.loyalty}</span>
+        ${r.post?`<span style="font-size:.65rem;color:var(--gold)">${POST_INFO[r.post].label}から異動</span>`:''}
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('rm-content').innerHTML=html;
+  document.getElementById('retainer-modal').style.display='flex';
+}
+
+function closeRetainerModal(){ document.getElementById('retainer-modal').style.display='none'; }
+
+function assignRetainer(retId, newPost){
+  const r=gs.retainers.find(x=>x.id===retId);
+  if(!r) return;
+  // 新しいポストに既存の家臣がいれば外す
+  if(newPost){
+    const displaced=gs.retainers.find(x=>x.post===newPost&&x.id!==retId);
+    if(displaced) displaced.post=null;
+  }
+  const oldPost=r.post;
+  r.post=newPost||null;
+  const msg=newPost
+    ?`${r.name}を${POST_INFO[newPost].label}に任命した。`
+    :`${r.name}を${oldPost?POST_INFO[oldPost].label+'から外した。':'役職なしにした。'}`;
+  addEvent('info','役職変更',msg);
+  closeRetainerModal();
+  renderAll();
+  notif(msg);
 }
 
 // ========================== 城下町建設 ==========================
@@ -1562,7 +1811,7 @@ function phase(y){
 // ========================== RENDER ==========================
 function renderAll(){
   if(!gs) return;
-  renderHeader(); renderLeft(); renderRight(); renderEvents(); renderFinance(); renderPolicies(); renderActions(); renderFacilities();
+  renderHeader(); renderLeft(); renderRight(); renderEvents(); renderFinance(); renderPolicies(); renderActions(); renderFacilities(); renderRetainers();
   const blocked=!gs||gs.gameOver||!!pendingChoice;
   document.getElementById('btn-turn').disabled=blocked;
   document.getElementById('btn-skip').disabled=blocked;
