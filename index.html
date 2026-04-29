@@ -395,6 +395,10 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
         <h4>◆ 幕府関係</h4>
         <div id="bakufu-status" style="font-size:.78rem"></div>
       </div>
+      <div class="psec" id="faction-section">
+        <h4>◆ 家中の緊張度</h4>
+        <div id="faction-bars"></div>
+      </div>
       <div class="psec" id="tobaku-section" style="display:none">
         <h4>◆ 幕末の潮流</h4>
         <div class="tobaku-labels"><span>佐幕派</span><span>倒幕派</span></div>
@@ -1148,6 +1152,8 @@ function newState(domId) {
     facEffects: { incomeBonus:0, minshinCap:0, militaryCap:0, disasterMod:0, rankakuSpeedBonus:0 },
     // --- 家臣・重臣 ---
     retainers: makeRetainers(dom),// 名前付き家臣リスト
+    // --- 家中派閥 ---
+    factionTension:{ budan:30, bunchi:30, kenyaku:30, sekkyoku:30 },
     // --- イベントチェーン ---
     activeChains: [],             // [{ chainId, stepId, triggerTurn }]
     chainCooldowns: {},           // { chainId: lastTriggerTurn }
@@ -1219,6 +1225,7 @@ function processTurn() {
   handleSankin();
   processConstruction();
   applyRetainerLoyalty();
+  if(!pendingChoice) updateFactions();
   processChains();
   if(!pendingChoice) {
     // チェーン始動 25% / 通常ランダム 22%（両方走らないよう分岐）
@@ -1435,6 +1442,50 @@ function recordYear() {
     year:gs.year, koku:gs.koku, money:gs.money,
     minshin:Math.floor(gs.minshin), bakufu:Math.floor(gs.bakufu)
   });
+}
+
+// ========================== 家中派閥 ==========================
+function updateFactions(){
+  const pol=gs.policies;
+  // 政策と各派閥の整合性
+  const delta={
+    budan:    pol.military===1?-4:+3,
+    bunchi:   (pol.education===0||pol.finance===1)?-3:+2,
+    kenyaku:  (pol.finance===0&&pol.shogunate===0)?-4:+3,
+    sekkyoku: (pol.finance===1&&pol.domestic===0)?-4:+3,
+  };
+  // 家老の政治力で全派閥の緊張を抑制
+  const karoR=getPostRetainer('karo');
+  const suppress=karoR?karoR.seiji*0.25:0;
+  for(const f in gs.factionTension){
+    gs.factionTension[f]=clamp(gs.factionTension[f]+delta[f]-suppress,0,100);
+  }
+  // 緊張MAX → チェーン発火（1ターン1回）
+  for(const [f,v] of Object.entries(gs.factionTension)){
+    if(v>=82&&Math.random()<0.18){
+      triggerFactionEvent(f,v);
+      gs.factionTension[f]=40; // リセット
+      break;
+    }
+  }
+}
+
+function triggerFactionEvent(faction,tension){
+  const lbl=FACTION_LABEL[faction];
+  showChoice(`家中騒動 — ${lbl}の反乱`,
+    `${lbl}の家臣たちの不満が頂点に達した。重鎮が直訴状を突き付け、藩主の決断を迫っている。`,
+    [
+      { label:'要求を受け入れ政策を見直す', cls:'c-good',
+        effect:`${lbl}の要求を一部飲んだ。緊張は緩和したが藩主の権威が揺らいだ。`,
+        ef:{ minshinD:-3, prestigeD:-5 } },
+      { label:'強権を発動し首謀者を謹慎させる', cls:'c-danger',
+        effect:`断固とした処置で収拾した。緊張は下がったが恨みが残った。`,
+        ef:{ prestigeD:5, minshinD:-5 } },
+      { label:'家老に仲裁させる', cls:'',
+        effect:`家老が間に入り穏便に収拾した。`,
+        ef:{ minshinD:-1 } },
+    ]
+  );
 }
 
 // ========================== 家臣忠誠度処理 ==========================
@@ -1877,6 +1928,18 @@ function renderRight(){
     const lbl=gs.tobaku>70?'倒幕色が強い':gs.tobaku>55?'やや倒幕寄り':gs.tobaku<30?'佐幕色が強い':gs.tobaku<45?'やや佐幕寄り':'中立';
     document.getElementById('tobaku-label').textContent=lbl;
   } else { tSec.style.display='none'; }
+
+  // 家中派閥テンションバー
+  const fbEl=document.getElementById('faction-bars');
+  if(fbEl && gs.factionTension){
+    const factions=[['budan','武断派','br'],['bunchi','文治派','bg'],['kenyaku','倹約派','bgold'],['sekkyoku','積極派','bp']];
+    fbEl.innerHTML=factions.map(([k,lbl,cls])=>{
+      const v=gs.factionTension[k];
+      const color=v>=70?'var(--red)':v>=50?'var(--wood)':'var(--green)';
+      return `<div class="srow"><div class="slabel" style="font-size:.68rem">${lbl}</div><div class="sbar-wrap"><div class="sbar ${cls}" style="width:${v}%;background:${color}"></div></div><div class="sval" style="font-size:.68rem">${Math.floor(v)}</div></div>`;
+    }).join('');
+  }
+
   const inc=calcIncome(),exp=calcExpense(),bal=inc-exp;
   document.getElementById('f-income').textContent=`+${fmt(inc)}`;
   document.getElementById('f-expense').textContent=`-${fmt(exp)}`;
