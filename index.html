@@ -765,6 +765,241 @@ const LORD_TRAITS = [
     desc:'大らかで豪快な性格。民心が自然と上昇するが、支出も増えやすい。宴席・交流系イベントで効果が増す。' },
 ];
 
+// ========================== EVENT CHAINS ==========================
+// 連鎖イベント定義。steps[startStep] から始まり、選択肢の nextStep で次ステップへ分岐。
+// nextStep が null のステップで終了。delay は次ステップまでの月数。
+const EVENT_CHAINS = [
+  // ── 凶作の連鎖 ──────────────────────────────────────
+  { id:'famine_chain', w:6, cooldown:120, cond:g=>g.year>=1650&&g.minshin<78,
+    startStep:'start',
+    steps:{
+      start:{
+        title:'今年の凶作の兆候', type:'bad',
+        text:'夏の長雨と日照不足が続いている。このままでは収穫が大幅に落ち込みそうだ。早急な手を打つべきか？',
+        ef:{ minshinD:-3 },
+        choices:[
+          { label:'備蓄米を事前に放出して農民を支援する', cls:'c-good',
+            effect:'蔵を開き早めの支援を行った。財政は痛むが農民は安堵した。',
+            ef:{moneyD:-1500}, nextStep:'early_relief', delay:3 },
+          { label:'他藩から食料を買い付けて備蓄する', cls:'',
+            effect:'急ぎ他藩との交渉に入った。費用はかかるが確実な手だ。',
+            ef:{moneyD:-2500}, nextStep:'buy_food', delay:2 },
+          { label:'様子を見る（今は動かない）', cls:'c-danger',
+            effect:'まだ確かな被害が出ていない。しばらく静観することにした。',
+            ef:{}, nextStep:'wait', delay:3 },
+        ]
+      },
+      early_relief:{
+        title:'早期救済が功を奏した', type:'good',
+        text:'備蓄米の放出が効果を上げ、農民の離散を防いだ。飢饉の被害は最小限に抑えられた。',
+        ef:{ minshinD:8 },
+        choices:[
+          { label:'農村復興に追加投資し田畑を整える', cls:'c-good',
+            effect:'復興投資が長期的な農業基盤を強化した。石高がわずかに増加した。',
+            ef:{moneyD:-1000, minshinD:5, kokuMod:.01}, nextStep:null },
+          { label:'追加の出費は抑え通常の年貢を徴収する', cls:'',
+            effect:'財政を守ったが農村の回復は遅れた。',
+            ef:{minshinD:-3}, nextStep:null },
+        ]
+      },
+      buy_food:{
+        title:'他藩からの食料確保に成功', type:'good',
+        text:'交渉の末に食料を確保できた。大きな出費だったが、領内の飢饉は回避できた。',
+        ef:{ minshinD:6 }, choices:null
+      },
+      wait:{
+        title:'飢饉が深刻化した！', type:'critical',
+        text:'様子見をしているうちに凶作が確定した。農民の中に村を捨て逃散する者が現れ始めている。',
+        ef:{ minshinD:-12, kokuMod:-.03 },
+        choices:[
+          { label:'今からでも蔵を開き農民を救う', cls:'c-good',
+            effect:'遅まきながら蔵を開いた。遅れたが何もしないよりはましだ。',
+            ef:{moneyD:-3000}, nextStep:'late_relief', delay:1 },
+          { label:'逃散阻止のため武力を行使する', cls:'c-danger',
+            effect:'武力で農民を縛り付けようとした。強引な手段はさらなる恨みを買う。',
+            ef:{}, nextStep:'suppress_fail', delay:1 },
+        ]
+      },
+      late_relief:{
+        title:'遅すぎた救済', type:'bad',
+        text:'救済は届いたが、すでに多くの農民が村を去った後だった。石高の回復には長い時間がかかるだろう。',
+        ef:{ minshinD:5, kokuMod:-.01 }, choices:null
+      },
+      suppress_fail:{
+        title:'武力阻止が各地で一揆を招いた', type:'critical',
+        text:'逃散を阻止しようとした藩兵が農民と衝突し、各地で小規模な一揆が相次いで発生した。',
+        ef:{ minshinD:-10, moneyD:-1000 }, choices:null
+      },
+    }
+  },
+
+  // ── 家臣の汚職 ──────────────────────────────────────
+  { id:'corruption_chain', w:4, cooldown:180, cond:()=>true,
+    startStep:'start',
+    steps:{
+      start:{
+        title:'家臣の不正の噂', type:'info',
+        text:'藩内で、ある家臣が年貢の横流しをしているという噂が耳に入った。確かな証拠はないが、放置もできない。',
+        ef:{},
+        choices:[
+          { label:'直ちに内密に調査を命じる', cls:'c-good',
+            effect:'信頼できる家臣に密かに調査を命じた。結果が出るまでしばらくかかる。',
+            ef:{prestigeD:-2}, nextStep:'investigate', delay:2 },
+          { label:'証拠がない今は見て見ぬふりをする', cls:'c-danger',
+            effect:'確たる証拠もなく動くのはリスクが高い。しばらく様子を見ることにした。',
+            ef:{}, nextStep:'ignore', delay:3 },
+        ]
+      },
+      investigate:{
+        title:'調査結果 — 汚職の証拠あり', type:'bad',
+        text:'調査の結果、横流しの証拠が見つかった。横領額は数百両に上る。いかに処断するか？',
+        ef:{ minshinD:-3 },
+        choices:[
+          { label:'家臣を厳しく処断し家中に示しをつける', cls:'c-good',
+            effect:'毅然とした処断が家中の綱紀を引き締めた。横領額は没収した。',
+            ef:{prestigeD:5, moneyD:300}, nextStep:'punish', delay:1 },
+          { label:'穏便に諭し穴埋めさせる（穏便処理）', cls:'',
+            effect:'家中の体面を守るため穏便に処理した。波風は立たなかった。',
+            ef:{}, nextStep:'cover', delay:1 },
+        ]
+      },
+      ignore:{
+        title:'汚職が表沙汰になった', type:'critical',
+        text:'放置した結果、横流しの件が家中に知れ渡ってしまった。領民にも噂が広まっている。',
+        ef:{ minshinD:-8, bakufuD:-5 },
+        choices:[
+          { label:'今からでも厳しく処断する', cls:'c-good',
+            effect:'遅ればせながら厳しい処断を下した。収拾はついたが威信の傷は残る。',
+            ef:{prestigeD:2}, nextStep:'punish_late', delay:1 },
+          { label:'幕府に知られる前に全力で隠蔽する', cls:'c-danger',
+            effect:'必死に隠蔽工作を行った。しかしいつ露見するか…。',
+            ef:{moneyD:-2000}, nextStep:'exposed', delay:2 },
+        ]
+      },
+      punish:{
+        title:'厳正な処断が家中に示しをつけた', type:'good',
+        text:'不正を働いた家臣を厳しく処断したことで、家中の綱紀が引き締まった。領民からも公正な藩主として信頼を得た。',
+        ef:{ minshinD:5, prestigeD:3 }, choices:null
+      },
+      cover:{
+        title:'問題は表向き収拾した', type:'info',
+        text:'穏便な処理で問題は表向き解決した。しかし家中には「お家では不正は許される」という空気が残った。',
+        ef:{ monbatsuD:5 }, choices:null
+      },
+      punish_late:{
+        title:'遅ればせながら処断完了', type:'info',
+        text:'処断が遅れたことで威信は低下したが、最終的には家中の秩序を取り戻すことができた。',
+        ef:{ minshinD:3, prestigeD:-5 }, choices:null
+      },
+      exposed:{
+        title:'幕府の目付に発覚した！', type:'critical',
+        text:'隠蔽工作にもかかわらず、幕府の目付が藩内の汚職を嗅ぎつけた。お咎めは免れないだろう。',
+        ef:{ bakufuD:-15, prestigeD:-10, minshinD:-5 }, choices:null
+      },
+    }
+  },
+
+  // ── 商人の返済要求 ──────────────────────────────────
+  { id:'debt_chain', w:5, cooldown:150, cond:g=>g.saikai>g.koku*1.0&&g.year>=1620,
+    startStep:'start',
+    steps:{
+      start:{
+        title:'大坂商人が返済を迫る', type:'bad',
+        text:'大坂の豪商が使いを送ってきた。「長年の借財をそろそろご返済いただきたい」という申し出だ。断れば信用に関わる。',
+        ef:{ minshinD:-2 },
+        choices:[
+          { label:'即座に一括返済する（-5000両、借財-8000）', cls:'c-good',
+            effect:'意を決して一括返済した。財政は厳しいが、信用が大きく回復した。',
+            ef:{moneyD:-5000, saikaiD:-8000, prestigeD:5}, nextStep:null },
+          { label:'猶予を交渉する（500両の手数料）', cls:'',
+            effect:'交渉の席を設けた。500両の手数料を払い、交渉が始まった。',
+            ef:{moneyD:-500}, nextStep:'negotiate', delay:2 },
+          { label:'踏み倒す（当面は返済しない）', cls:'c-danger',
+            effect:'返済を拒否した。商人は怒って立ち去ったが、この先どうなるか…。',
+            ef:{}, nextStep:'renege', delay:3 },
+        ]
+      },
+      negotiate:{
+        title:'猶予交渉の結果', type:'info',
+        text:'交渉の席で商人はこう切り出した。「では分割での返済か、さもなくばさらなる追加融資を…」',
+        ef:{},
+        choices:[
+          { label:'分割返済に合意し着実に返していく', cls:'c-good',
+            effect:'分割返済の計画を立てた。毎月の返済で借財が少しずつ減っていく。',
+            ef:{moneyD:-2000, saikaiD:-5000}, nextStep:'repay_plan', delay:1 },
+          { label:'さらに追加融資を引き出す', cls:'c-danger',
+            effect:'追加融資を受けた。その場しのぎだが、借財はさらに膨らんだ。',
+            ef:{moneyD:3000, saikaiD:6000}, nextStep:'more_debt', delay:1 },
+        ]
+      },
+      renege:{
+        title:'商人からの信用が失墜した', type:'critical',
+        text:'踏み倒しの噂が大坂の商人仲間に広まった。藩の信用が大きく傷つき、今後の融資が難しくなった。',
+        ef:{ minshinD:-5, bakufuD:-8, prestigeD:-10 },
+        choices:[
+          { label:'頭を下げ高利での再融資を受ける', cls:'',
+            effect:'屈辱だが頭を下げた。高利ではあるが何とか資金を調達した。',
+            ef:{moneyD:2000, saikaiD:6000}, nextStep:null },
+          { label:'幕府に仲裁を求め正式に交渉する', cls:'c-good',
+            effect:'幕府を通じた公式の交渉を求めた。費用はかかるが筋を通した解決を図る。',
+            ef:{bakufuD:-5, prestigeD:3, moneyD:-1000, saikaiD:-2000}, nextStep:null },
+        ]
+      },
+      repay_plan:{
+        title:'分割返済が軌道に乗った', type:'good',
+        text:'計画的な返済が実を結び、商人との関係が改善された。藩の信用が少し回復した。',
+        ef:{ prestigeD:5 }, choices:null
+      },
+      more_debt:{
+        title:'借財がさらに膨らんだ', type:'bad',
+        text:'追加融資で当座をしのいだが、利息の負担がさらに重くなった。根本的な解決には程遠い。',
+        ef:{ minshinD:-3, bakufuD:-2 }, choices:null
+      },
+    }
+  },
+
+  // ── 改革の試み ──────────────────────────────────────
+  { id:'reform_chain', w:4, cooldown:200, cond:g=>g.year>=1750&&g.minshin>55&&g.money>3000,
+    startStep:'start',
+    steps:{
+      start:{
+        title:'改革派家臣の台頭', type:'info',
+        text:'若い家臣から藩政改革の提言書が届いた。倹約と産業育成を柱とする内容だ。改革を断行するか否か、藩主の判断が求められる。',
+        ef:{},
+        choices:[
+          { label:'大胆な改革を断行する', cls:'c-good',
+            effect:'改革の旗を高く掲げた。家中が揺れるが、変革の機運が高まった。',
+            ef:{minshinD:3, monbatsuD:-10}, nextStep:'rapid', delay:2 },
+          { label:'慎重に段階的な改革を進める', cls:'',
+            effect:'急がず着実に、という方針で改革に着手した。',
+            ef:{}, nextStep:'gradual', delay:4 },
+          { label:'今は時期尚早として棚上げにする', cls:'c-danger',
+            effect:'改革派は失望したが、家中の反発も避けられた。',
+            ef:{monbatsuD:8, minshinD:-3}, nextStep:null },
+        ]
+      },
+      rapid:{
+        title:'改革の混乱が生じた', type:'bad',
+        text:'急進的な改革に門閥派が猛反発した。藩内が揺れている。このまま改革を続行するか？',
+        ef:{ minshinD:-5, bakufuD:-3 },
+        choices:[
+          { label:'反発を押し切り改革を続行する', cls:'c-good',
+            effect:'痛みを覚悟で改革を続けた。短期的には混乱するが、長期的な成果が期待できる。',
+            ef:{moneyD:-2000, minshinD:-3, kokuMod:.03, prestigeD:8}, nextStep:null },
+          { label:'反発に折れて改革を撤回する', cls:'c-danger',
+            effect:'改革は頓挫した。藩主の指導力への疑問が生まれた。',
+            ef:{prestigeD:-10, monbatsuD:15}, nextStep:null },
+        ]
+      },
+      gradual:{
+        title:'緩やかな改革が実を結んだ', type:'good',
+        text:'段階的な改革が着実に成果を上げている。急激な変化を避けたことで反発も最小限に抑えられた。',
+        ef:{ minshinD:6, kokuMod:.015, prestigeD:5 }, choices:null
+      },
+    }
+  },
+];
+
 // ========================== STATE ==========================
 let gs = null;
 let pendingChoice = null;
@@ -798,6 +1033,9 @@ function newState(domId) {
     construction: null,           // { facilityId, monthsLeft, totalMonths }
     builtFacilities: [],          // 完成済み施設IDの配列
     facEffects: { incomeBonus:0, minshinCap:0, militaryCap:0, disasterMod:0, rankakuSpeedBonus:0 },
+    // --- イベントチェーン ---
+    activeChains: [],             // [{ chainId, stepId, triggerTurn }]
+    chainCooldowns: {},           // { chainId: lastTriggerTurn }
     events:[], usedHist:new Set(), turns:0, gameOver:false,
   };
 }
@@ -861,7 +1099,12 @@ function processTurn() {
   applyStats();
   handleSankin();
   processConstruction();
-  if(Math.random()<.22) triggerRandom();
+  processChains();
+  if(!pendingChoice) {
+    // チェーン始動 25% / 通常ランダム 22%（両方走らないよう分岐）
+    if(Math.random()<.25){ if(!tryTriggerChain()) { if(Math.random()<.22) triggerRandom(); } }
+    else if(Math.random()<.22) triggerRandom();
+  }
   checkHist();
   checkKaiyaku();
   updateTobaku();
@@ -1011,6 +1254,15 @@ function showChoice(title, text, choices) {
 function resolveChoice(idx) {
   const c=pendingChoice[idx];
   applyEf(c.ef);
+  // チェーンの次ステップをスケジュール
+  if(c.chainNext && c.chainNext.stepId) {
+    const curTurn=gs.year*12+gs.month;
+    gs.activeChains.push({
+      chainId: c.chainNext.chainId,
+      stepId:  c.chainNext.stepId,
+      triggerTurn: curTurn + (c.chainNext.delay||1),
+    });
+  }
   const evType = (c.cls==='c-danger')?'bad':(c.cls==='c-good'?'good':'info');
   addEvent(evType, `決断: ${c.label}`, c.effect||'');
   pendingChoice=null;
@@ -1059,6 +1311,69 @@ function recordYear() {
     year:gs.year, koku:gs.koku, money:gs.money,
     minshin:Math.floor(gs.minshin), bakufu:Math.floor(gs.bakufu)
   });
+}
+
+// ========================== イベントチェーン処理 ==========================
+// チェーン選択肢を showChoice 形式に変換（chainNext を埋め込む）
+function wrapChainChoices(chainId, choices) {
+  return (choices||[]).filter(c=>
+    !c.traitReq || (gs.lord && gs.lord.traits.some(t=>t.key===c.traitReq))
+  ).map(c=>({
+    ...c,
+    chainNext: c.nextStep ? { chainId, stepId:c.nextStep, delay:c.delay||1 } : null,
+  }));
+}
+
+// 毎ターン: 発火時刻になったチェーンステップを処理
+function processChains() {
+  const curTurn=gs.year*12+gs.month;
+  let fired=false;
+  gs.activeChains=gs.activeChains.filter(ac=>{
+    if(ac.triggerTurn>curTurn) return true;     // まだ未到来
+    if(fired) return true;                       // 1ターン1件のみ
+    fired=true;
+    const chain=EVENT_CHAINS.find(c=>c.id===ac.chainId);
+    if(!chain) return false;
+    const step=chain.steps[ac.stepId];
+    if(!step) return false;
+    applyEf(step.ef);
+    if(step.choices&&step.choices.length){
+      const wrapped=wrapChainChoices(ac.chainId, step.choices);
+      showChoice(`【続報】${step.title}`, step.text||'', wrapped);
+    } else {
+      addEvent(step.type||'info', `【続報】${step.title}`, step.text||'');
+    }
+    return false;
+  });
+}
+
+// ランダムイベントの代わりにチェーン始動を試みる
+function tryTriggerChain() {
+  const curTurn=gs.year*12+gs.month;
+  const available=EVENT_CHAINS.filter(c=>
+    (!c.cond||c.cond(gs)) &&
+    (!gs.chainCooldowns[c.id]||curTurn-gs.chainCooldowns[c.id]>=(c.cooldown||120)) &&
+    !gs.activeChains.some(ac=>ac.chainId===c.id)
+  );
+  if(!available.length) return false;
+  const total=available.reduce((s,c)=>s+(c.w||5),0);
+  let r=Math.random()*total;
+  for(const c of available){
+    r-=(c.w||5);
+    if(r<=0){
+      gs.chainCooldowns[c.id]=curTurn;
+      const step=c.steps[c.startStep];
+      applyEf(step.ef);
+      if(step.choices&&step.choices.length){
+        const wrapped=wrapChainChoices(c.id, step.choices);
+        showChoice(step.title, step.text||'', wrapped);
+      } else {
+        addEvent(step.type||'info', step.title, step.text||'');
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 // ========================== 城下町建設 ==========================
