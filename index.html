@@ -166,6 +166,8 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
 .choice-btn.c-danger:hover{background:rgba(139,26,26,.1)}
 .choice-btn.c-good{border-color:var(--green)}
 .choice-btn.c-good:hover{background:rgba(45,106,45,.1)}
+.choice-btn.c-warn{border-color:var(--wood)}
+.choice-btn.c-warn:hover{background:rgba(180,120,20,.1)}
 /* トレイット固有選択肢 */
 .choice-btn.choice-trait{border-left:3px solid var(--gold);background:rgba(201,162,39,.07)}
 .choice-btn.choice-trait .clabel::before{content:'★ ';color:var(--gold);font-size:.75rem}
@@ -1871,6 +1873,7 @@ function performSuccession() {
 }
 
 function checkGameOver() {
+  if(gs.gameOver) return; // 既にゲームオーバーなら二重実行しない
   if(gs.minshin<=0){ showSummary('⚔️','大一揆による御家取り潰し','民心が極限まで低下し大規模な一揆が勃発。幕府から改易を命じられた。'); return; }
   if(gs.bakufu<=5){ showSummary('🏯','幕府命令による改易','幕府との関係が最悪となり改易の命が下った。領地はすべて没収された。'); return; }
   if(gs.saikai>gs.koku*3.5){ showSummary('💸','財政破綻','大坂借財が石高の3.5倍を超え財政が完全に破綻した。藩の運営が不可能となった。'); return; }
@@ -2026,6 +2029,7 @@ function renderRight(){
     tSec.style.display='';
     const w=gs.tobaku;
     document.getElementById('tobaku-sabaku-bar').style.width=`${100-w}%`;
+    document.getElementById('tobaku-tobaku-bar').style.width=`${w}%`;
     const lbl=gs.tobaku>70?'倒幕色が強い':gs.tobaku>55?'やや倒幕寄り':gs.tobaku<30?'佐幕色が強い':gs.tobaku<45?'やや佐幕寄り':'中立';
     document.getElementById('tobaku-label').textContent=lbl;
   } else { tSec.style.display='none'; }
