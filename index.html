@@ -788,61 +788,99 @@ function getPostRetainer(post){ return gs.retainers&&gs.retainers.find(r=>r.post
 
 // Special player-initiated actions
 const SPECIAL_ACTIONS = [
-  { id:'repay', icon:'💰', title:'借財の返済', desc:'大坂商人への借財を一部返済し利息の負担を軽減する。', cost:'3000両', cond:g=>g.money>=3000&&g.saikai>0,
+  { id:'repay',    icon:'💰', title:'借財の返済',   desc:'大坂商人への借財を一部返済し利息の負担を軽減する。',
+    cost:'3000両', cond:g=>g.money>=3000&&g.saikai>0,
     fn:()=>{ gs.money-=3000; gs.saikai=Math.max(0,gs.saikai-10000); addEvent('good','借財返済','大坂商人への借財10000両を返済した。利息の負担が軽くなった。'); } },
-  { id:'gift', icon:'🎁', title:'幕府への贈答', desc:'幕府の重臣へ贈り物をし関係を改善する。', cost:'3000両', cond:g=>g.money>=3000,
+  { id:'gift',     icon:'🎁', title:'幕府への贈答',  desc:'幕府の重臣へ贈り物をし関係を改善する。年に一度しか実施できない。',
+    cost:'3000両', cd:12,
+    cond:g=>g.money>=3000,
     fn:()=>{ gs.money-=3000; gs.bakufu=clamp(gs.bakufu+10,0,100); addEvent('good','贈答工作','幕府重臣への贈答が功を奏し、幕府との関係が改善された。'); } },
-  { id:'relief', icon:'🌾', title:'農村救済', desc:'困窮した農民に救済米を配り民心を回復させる。', cost:'2500両', cond:g=>g.money>=2500,
+  { id:'relief',   icon:'🌾', title:'農村救済',     desc:'困窮した農民に救済米を配り民心を回復させる。3ヶ月に一度まで。',
+    cost:'2500両', cd:3,
+    cond:g=>g.money>=2500,
     fn:()=>{ gs.money-=2500; gs.minshin=clamp(gs.minshin+12,0,100); addEvent('good','農村救済','藩の蔵から救済米を配布した。領民の感謝が民心を押し上げた。'); } },
-  { id:'adopt', icon:'👶', title:'養子縁組', desc:'有力家中から養子を迎え世継ぎ問題を解消する。', cost:'5000両＋威信-10', cond:g=>!g.heir&&g.money>=5000,
+  { id:'adopt',    icon:'👶', title:'養子縁組',     desc:'有力家中から養子を迎え世継ぎ問題を解消する。',
+    cost:'5000両＋威信-10', cond:g=>!g.heir&&g.money>=5000,
     fn:()=>{ gs.money-=5000; gs.prestige=clamp(gs.prestige-10,0,100); gs.heir=true; gs.heirAge=10; addEvent('good','養子縁組成立','縁組が成立し世継ぎ問題が解消した。家臣団の安堵感が広がっている。'); } },
-  { id:'suppress', icon:'⚔️', title:'一揆鎮圧出兵', desc:'不穏な農村地域に藩兵を派遣し秩序を回復する。民心が低い時に有効。', cost:'2000両', cond:g=>g.money>=2000&&g.minshin<55&&g.military>30,
+  { id:'suppress', icon:'⚔️', title:'一揆鎮圧出兵', desc:'不穏な農村地域に藩兵を派遣し秩序を回復する。6ヶ月に一度まで。',
+    cost:'2000両', cd:6,
+    cond:g=>g.money>=2000&&g.minshin<55&&g.military>30,
     fn:()=>{ gs.money-=2000; gs.minshin=clamp(gs.minshin+8,0,100); gs.military=clamp(gs.military-3,0,100); addEvent('info','鎮圧出兵','藩兵を派遣し不穏な動きを抑えた。一時的に秩序が回復した。'); } },
-  { id:'monopoly', icon:'🏪', title:'専売令の布告', desc:'特産品の専売を藩が独占し直接収益を得る。民心と商人関係が悪化する。', cost:'なし（効果：収入+10%、民心-8）', cond:g=>!g.monopoly,
+  { id:'monopoly', icon:'🏪', title:'専売令の布告',  desc:'特産品の専売を藩が独占し直接収益を得る。民心と商人関係が悪化する。',
+    cost:'なし（効果：収入+10%、民心-8）', cond:g=>!g.monopoly,
     fn:()=>{ gs.monopoly=true; gs.minshin=clamp(gs.minshin-8,0,100); gs.incomeBonus=(gs.incomeBonus||0)+.10; addEvent('info','専売令布告','特産品の専売令を布告した。商人から反発の声が上がっているが、収益が増加した。'); } },
-  { id:'medical', icon:'💊', title:'藩主の療養', desc:'藩主の健康を回復させるため名医を招く。', cost:'1500両', cond:g=>g.money>=1500&&g.lord.health<14,
+  { id:'medical',  icon:'💊', title:'藩主の療養',   desc:'藩主の健康を回復させるため名医を招く。6ヶ月に一度まで。',
+    cost:'1500両', cd:6,
+    cond:g=>g.money>=1500&&g.lord.health<14,
     fn:()=>{ gs.money-=1500; gs.lord.health=Math.min(20,gs.lord.health+5); addEvent('good','療養','名医を招き藩主の健康が回復した。'); } },
-  { id:'recruit', icon:'🗡️', title:'兵の徴集', desc:'農民から兵を徴集し軍事力を増強する。民心が微減する。', cost:'2000両', cond:g=>g.money>=2000&&g.military<90,
+  { id:'recruit',  icon:'🗡️', title:'兵の徴集',    desc:'農民から兵を徴集し軍事力を増強する。4ヶ月に一度まで。民心が微減する。',
+    cost:'2000両', cd:4,
+    cond:g=>g.money>=2000&&g.military<90,
     fn:()=>{ gs.money-=2000; gs.military=clamp(gs.military+10,0,100); gs.minshin=clamp(gs.minshin-3,0,100); addEvent('info','兵の徴集','農村から兵を徴集し軍事力が増強された。'); } },
-  { id:'yosiki', icon:'🔫', title:'洋式調練', desc:'西洋式の兵術を導入し軍の装備・練度を近代化する。蘭学30以上が必要。洋式装備は最大Lv3まで。', cost:'5000両', cond:g=>g.rankaku>=30&&g.money>=5000&&g.mil&&g.mil.equipment<3,
+  { id:'banquet',  icon:'🍶', title:'慰労の宴',     desc:'家臣団を招き慰労の宴を開く。全家臣の忠誠心が回復する。8ヶ月に一度まで。',
+    cost:'2000両', cd:8,
+    cond:g=>g.money>=2000&&g.retainers&&g.retainers.length>0,
+    fn:()=>{ gs.money-=2000; gs.retainers.forEach(r=>{ r.loyalty=clamp(r.loyalty+15,0,100); }); addEvent('good','慰労の宴','家臣団を招いて宴を催した。皆の忠誠心が大きく回復した。'); } },
+  { id:'ronin',    icon:'🧑‍⚔️', title:'浪人の登用',  desc:'各地の浪人から有能な人材を探し出し藩士として取り立てる。年に一度まで。',
+    cost:'2000両', cd:12,
+    cond:g=>g.money>=2000&&(!g.retainers||g.retainers.length<12),
+    fn:()=>{
+      gs.money-=2000;
+      const pool=['山田源三郎','中村半四郎','田中又兵衛','鈴木六郎','高橋権之助','小林清之進','渡辺弥七','佐藤源五郎','伊藤兵助','木村半左衛門','岡本利助','前川甚三'];
+      const used=(gs.retainers||[]).map(r=>r.name);
+      const avail=pool.filter(n=>!used.includes(n));
+      if(!avail.length){ addEvent('info','浪人登用','適切な浪人が見当たらなかった。'); return; }
+      const name=avail[rng(0,avail.length-1)];
+      const factions=['budan','bunchi','kenyaku','sekkyoku'];
+      const stats={ seiji:rng(3,8),sanjutsu:rng(3,8),buryaku:rng(3,8),gaiko:rng(3,8) };
+      const best=Object.entries(stats).reduce((b,e)=>e[1]>b[1]?e:b,['seiji',0]);
+      const bestLabel={seiji:'政治',sanjutsu:'算術',buryaku:'武略',gaiko:'外交'}[best[0]];
+      const newR={ id:'r_'+gs.turns, name, post:null, ...stats, faction:factions[rng(0,3)], loyalty:rng(55,75), age:rng(25,42) };
+      if(!gs.retainers) gs.retainers=[];
+      gs.retainers.push(newR);
+      addEvent('good','浪人登用',`${name}を新たに藩士として取り立てた。得意：${bestLabel}${best[1]}。`);
+    } },
+  { id:'yosiki',   icon:'🔫', title:'洋式調練',     desc:'西洋式の兵術を導入し軍の装備・練度を近代化する。蘭学30以上が必要。最大Lv3まで。',
+    cost:'5000両', cond:g=>g.rankaku>=30&&g.money>=5000&&g.mil&&g.mil.equipment<3,
     fn:()=>{ gs.money-=5000; gs.mil.equipment++; gs.military=clamp(gs.military+15,0,100); syncMilitary(); addEvent('good','洋式調練',`西洋式の兵術を導入した。装備が洋式Lv${gs.mil.equipment}に向上し戦力が増強された。`); } },
 ];
 
 // ========================== FACILITIES ==========================
 const FACILITIES = [
-  { id:'shinden', name:'新田開発',   icon:'🌾', cost:5000, months:6,
+  { id:'shinden', name:'新田開発',   icon:'🌾', cost:8000,  months:8,
     perm:{ kokuMod:.03 }, unique:true, cond:()=>true,
-    desc:'未開地を開墾し石高を恒久的に3%増加させる。長期収入の基盤が強化される。',
+    desc:'未開地を開墾し石高を恒久的に3%増加させる。長期収入の基盤が強化される。維持費：月250両',
     completeMsg:'新田の開墾が完成した。石高が3%増加した。' },
-  { id:'minato',  name:'港の整備',   icon:'⚓', cost:8000, months:4,
+  { id:'minato',  name:'港の整備',   icon:'⚓', cost:12000, months:6,
     perm:{ incomeBonus:.10 }, unique:true,
     cond:g=>['satsuma','kaga','tosa','sendai','hikone'].includes(g.dom.id),
-    desc:'港湾を整備し海運による交易を活発化する。収入が恒久的に10%増加する。（沿岸藩のみ）',
+    desc:'港湾を整備し海運による交易を活発化する。収入が恒久的に10%増加する。（沿岸藩のみ）維持費：月250両',
     completeMsg:'港が整備された。海運交易により収入が恒久的に10%増加した。' },
-  { id:'shukuba', name:'宿場町整備', icon:'🏘️', cost:4000, months:3,
+  { id:'shukuba', name:'宿場町整備', icon:'🏘️', cost:6000,  months:4,
     perm:{ minshinCap:5 }, unique:true, cond:()=>true,
-    desc:'街道の宿場町を整え領内の往来を活発にする。民心の上限が5上昇する。',
+    desc:'街道の宿場町を整え領内の往来を活発にする。民心の上限が5上昇する。維持費：月250両',
     completeMsg:'宿場町が整備された。民心の上限が5上昇した。' },
-  { id:'chisui',  name:'治水工事',   icon:'🌊', cost:6000, months:5,
+  { id:'chisui',  name:'治水工事',   icon:'🌊', cost:9000,  months:7,
     perm:{ disasterMod:-.5 }, unique:true, cond:()=>true,
-    desc:'河川の治水を行い洪水・旱魃・地震による被害を大幅に軽減する。',
+    desc:'河川の治水を行い洪水・旱魃・地震による被害を大幅に軽減する。維持費：月250両',
     completeMsg:'治水工事が完了した。自然災害による被害が大幅に軽減される。' },
-  { id:'hankko',  name:'藩校設立',   icon:'📚', cost:7000, months:4,
+  { id:'hankko',  name:'藩校設立',   icon:'📚', cost:10000, months:6,
     perm:{ rankakuBonus:10 }, unique:true, cond:()=>true,
-    desc:'藩士の子弟を教育し人材を育てる。蘭学知識が+10され、以後の蘭学上昇も速くなる。',
+    desc:'藩士の子弟を教育し人材を育てる。蘭学知識が+10され、以後の蘭学上昇も速くなる。維持費：月250両',
     completeMsg:'藩校が開校された。藩士の教育水準が上がり、蘭学知識が大きく向上した。' },
-  { id:'kozan',   name:'鉱山開発',   icon:'⛏️', cost:10000, months:8,
+  { id:'kozan',   name:'鉱山開発',   icon:'⛏️', cost:15000, months:10,
     perm:{ incomeBonus:.15 }, unique:true,
     cond:g=>['kaga','sendai','mito','tosa'].includes(g.dom.id),
-    desc:'山中の鉱山を開発し採掘収益を得る。収入が恒久的に15%増加する。（特定藩のみ）',
+    desc:'山中の鉱山を開発し採掘収益を得る。収入が恒久的に15%増加する。（特定藩のみ）維持費：月250両',
     completeMsg:'鉱山の開発が完了した。採掘収益により収入が恒久的に15%増加した。' },
-  { id:'shiro',   name:'城郭強化',   icon:'🏯', cost:8000, months:6,
+  { id:'shiro',   name:'城郭強化',   icon:'🏯', cost:12000, months:8,
     perm:{ militaryCap:15 }, unique:true, cond:()=>true,
-    desc:'城を修築し防衛力を高める。軍事力の上限が15上昇する。',
+    desc:'城を修築し防衛力を高める。軍事力の上限が15上昇する。維持費：月250両',
     completeMsg:'城郭の修築が完了した。軍事力の上限が15上昇した。' },
-  { id:'machiya', name:'商人街整備', icon:'🏪', cost:5000, months:3,
-    perm:{ incomeBonus:.07, minshinCap:3 }, unique:true, cond:()=>true,
-    desc:'城下の商人街を整備し経済を活性化する。収入+7%、民心の上限+3。',
+  { id:'machiya', name:'商人街整備', icon:'🏪', cost:8000,  months:5,
+    perm:{ incomeBonus:.07, minshinCap:3 }, unique:true,
+    cond:g=>g.builtFacilities&&g.builtFacilities.includes('shukuba'), // 宿場町整備が前提
+    desc:'城下の商人街を整備し経済を活性化する。収入+7%、民心の上限+3。※宿場町整備が必要。維持費：月250両',
     completeMsg:'商人街の整備が完了した。収入が7%増加し、民心の上限も3上昇した。' },
 ];
 
@@ -1166,6 +1204,8 @@ function newState(domId) {
     // --- 軍事力の実体化 ---
     mil: { troops:0, equipment:0 }, // equipment: 0=旧式 1〜3=洋式Lv
     tobafushimiDone: false,
+    // --- 特別行動クールダウン ---
+    actionCooldowns: {},  // { actionId: 解禁ターン(year*12+month) }
     // --- イベントチェーン ---
     activeChains: [],             // [{ chainId, stepId, triggerTurn }]
     chainCooldowns: {},           // { chainId: lastTriggerTurn }
@@ -1200,7 +1240,7 @@ function calcIncome() {
   incMod+=(gs.facEffects&&gs.facEffects.incomeBonus||0);
   const kanjoR=getPostRetainer('kanjo');
   if(kanjoR) incMod+=kanjoR.sanjutsu*0.004; // 算術10で+4%
-  const base=gs.koku*0.4/12*incMod;
+  const base=gs.koku*0.33/12*incMod;
   const prod=gs.dom.products.length*200;
   const lordMod=1+(gs.lord.politics-10)*.01;
   const minshinMod=gs.minshin>=80?1.12:gs.minshin<=30?0.72:1.0;
@@ -1225,7 +1265,8 @@ function calcExpense() {
   const edo=gs.dom.baseKoku*0.018/12;
   const sankinCost=gs.sankin.inEdo?gs.dom.edoDist*100+600:0;
   const interest=gs.saikai*0.005; // 月0.5%（年6%）
-  return Math.floor(base+edo+sankinCost+interest);
+  const facUpkeep=(gs.builtFacilities||[]).length*250; // 施設1棟あたり月250両の維持費
+  return Math.floor(base+edo+sankinCost+interest+facUpkeep);
 }
 
 function processTurn() {
@@ -1248,7 +1289,13 @@ function processTurn() {
   checkHist();
   checkKaiyaku();
   updateTobaku();
-  if(gs.month===12) recordYear();
+  if(gs.month===12){
+    // 年中行事費（正月・盆・祭礼等の年次出費）
+    const ceremony=Math.floor(gs.koku*0.004);
+    gs.money=Math.max(0,gs.money-ceremony);
+    if(ceremony>0) addEvent('info','年中行事',`正月・祭礼等の年中行事費${fmt(ceremony)}を支出した。`);
+    recordYear();
+  }
   gs.prevStats={minshin:gs.minshin, bakufu:gs.bakufu, money:gs.money};
   if(!pendingChoice) {
     checkGameOver();
@@ -1527,7 +1574,17 @@ function applyRetainerLoyalty(){
     const cap=r.seiji+r.sanjutsu+r.buryaku+r.gaiko;
     if(!r.post&&cap>=28) r.loyalty=clamp(r.loyalty-1,0,100);
     // 年齢は12月にインクリメント
-    if(gs.month===12) r.age++;
+    if(gs.month===12){
+      r.age++;
+      // 高齢退任（65歳以上で年20%の確率）
+      if(r.age>=65&&Math.random()<0.20){
+        const roleNote=r.post?`${POST_INFO[r.post].label}の職が空く。`:'';
+        r.post=null;
+        gs.retainers=gs.retainers.filter(x=>x.id!==r.id);
+        addEvent('info','家臣の致仕',`${r.name}（${r.age}歳）が高齢を理由に致仕を申し出た。${roleNote}「浪人の登用」で後任を探されたい。`);
+        return;
+      }
+    }
     // 忠誠度が極端に低い場合 → 離反イベント
     if(r.loyalty<=5&&!r.defecting){
       r.defecting=true;
@@ -2089,8 +2146,9 @@ function renderEvents(){
 
 function renderFinance(){
   const inc=calcIncome(),exp=calcExpense();
-  const base=Math.floor(gs.koku*.4/12),prod=gs.dom.products.length*200,ret=Math.floor(gs.koku*.25/12);
+  const base=Math.floor(gs.koku*.33/12),prod=gs.dom.products.length*200,ret=Math.floor(gs.koku*.25/12);
   const edo=Math.floor(gs.dom.baseKoku*.018/12),sankin=gs.sankin.inEdo?Math.floor(gs.dom.edoDist*100+600):0,interest=Math.floor(gs.saikai*.005);
+  const facUpkeep=(gs.builtFacilities||[]).length*250;
   document.getElementById('finance-detail').innerHTML=`
     <p style="font-size:.75rem;color:var(--ink-light);margin-bottom:.7rem">月次収支の詳細（統治${gs.turns}ヶ月目）</p>
     <h4 style="margin-bottom:.4rem;font-size:.8rem">◆ 収入</h4>
@@ -2103,6 +2161,7 @@ function renderFinance(){
     <div class="frow"><div class="flabel">江戸屋敷</div><div class="fneg">-${fmt(edo)}</div></div>
     <div class="frow"><div class="flabel">参勤費用</div><div class="fneg">-${fmt(sankin)}</div></div>
     <div class="frow"><div class="flabel">大坂利息(0.5%/月)</div><div class="fneg">-${fmt(interest)}</div></div>
+    ${facUpkeep>0?`<div class="frow"><div class="flabel">施設維持費(×${(gs.builtFacilities||[]).length}棟)</div><div class="fneg">-${fmt(facUpkeep)}</div></div>`:''}
     <div class="frow ftotal"><div>合計支出</div><div class="fneg">-${fmt(exp)}</div></div>
     <div style="margin-top:.8rem;padding-top:.5rem;border-top:2px solid var(--border)">
       <div class="frow ftotal"><div>月間収支</div><div class="${inc>=exp?'fpos':'fneg'}">${inc>=exp?'+':''}${fmt(inc-exp)}</div></div>
@@ -2137,13 +2196,16 @@ function renderPolicies(){
 
 function renderActions(){
   document.getElementById('action-grid').innerHTML=SPECIAL_ACTIONS.map(a=>{
-    const ok=a.cond(gs);
-    const reason=ok?'':getActionReason(a);
+    const cd=isOnCooldown(a.id);
+    const ok=!cd&&a.cond(gs);
+    const reason=cd?cooldownMsg(a.id):(ok?'':getActionReason(a));
+    const cdPct=cd&&a.cd?Math.round((1-(gs.actionCooldowns[a.id]-curTurnN())/a.cd)*100):0;
     return `<div class="action-card${ok?'':' disabled'}" onclick="${ok?`execAction('${a.id}')`:''}" >
       <div class="atitle">${a.icon} ${a.title}</div>
       <div class="adesc">${a.desc}</div>
-      <div class="acost">費用: ${a.cost}</div>
-      ${!ok?`<div style="font-size:.65rem;color:var(--red);margin-top:.2rem">⚠ ${reason}</div>`:''}
+      <div class="acost">費用: ${a.cost}${a.cd?` ／ CD:${a.cd}ヶ月`:''}</div>
+      ${cd?`<div style="font-size:.65rem;color:var(--wood);margin-top:.2rem">⏳ ${reason}</div>`
+          :!ok?`<div style="font-size:.65rem;color:var(--red);margin-top:.2rem">⚠ ${reason}</div>`:''}
     </div>`;
   }).join('');
 }
@@ -2158,6 +2220,9 @@ function getActionReason(a){
     case 'monopoly': return '専売令はすでに発令済み';
     case 'medical': return gs.lord.health>=14?'藩主は健康です':gs.money<1500?`藩金が足りない（残${fmt(gs.money)}）`:'';
     case 'recruit': return gs.military>=90?'兵力は十分です':gs.money<2000?`藩金が足りない（残${fmt(gs.money)}）`:'';
+    case 'banquet': return gs.money<2000?`藩金が足りない（残${fmt(gs.money)}）`:'家臣がいません';
+    case 'ronin':   return gs.retainers&&gs.retainers.length>=12?'家臣団は満員です':gs.money<2000?`藩金が足りない（残${fmt(gs.money)}）`:'';
+    case 'yosiki':  return gs.rankaku<30?'蘭学が不足（30以上必要）':gs.mil&&gs.mil.equipment>=3?'洋式装備は最大Lv3です':gs.money<5000?`藩金が足りない（残${fmt(gs.money)}）`:'';
     default: return '条件を満たしていません';
   }
 }
@@ -2173,11 +2238,25 @@ function setPolicy(key,idx){
   renderAll(); notif(`${pol.label}を「${opt.label}」に変更`);
 }
 
+function curTurnN(){ return gs.year*12+gs.month; }
+function isOnCooldown(id){ return gs.actionCooldowns&&gs.actionCooldowns[id]>curTurnN(); }
+function cooldownMsg(id){
+  const rem=(gs.actionCooldowns[id]||0)-curTurnN();
+  return rem>0?`クールダウン中（あと${rem}ヶ月）`:'';
+}
+
 function execAction(id){
   if(!gs||gs.gameOver) return;
   const a=SPECIAL_ACTIONS.find(x=>x.id===id);
-  if(!a||!a.cond(gs)){notif('この施策は現在実行できません');return;}
-  a.fn(); renderAll(); notif(`施策「${a.title}」を実行しました`);
+  if(!a){ notif('不明な施策です'); return; }
+  if(isOnCooldown(a.id)){ notif(cooldownMsg(a.id)); return; }
+  if(!a.cond(gs)){ notif('この施策は現在実行できません'); return; }
+  a.fn();
+  if(a.cd){
+    if(!gs.actionCooldowns) gs.actionCooldowns={};
+    gs.actionCooldowns[a.id]=curTurnN()+a.cd;
+  }
+  renderAll(); notif(`施策「${a.title}」を実行しました`);
 }
 
 function switchTab(tabId,btn){
