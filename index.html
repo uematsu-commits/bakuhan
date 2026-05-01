@@ -168,6 +168,21 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
 .choice-btn.c-good:hover{background:rgba(45,106,45,.1)}
 .choice-btn.c-warn{border-color:var(--wood)}
 .choice-btn.c-warn:hover{background:rgba(180,120,20,.1)}
+/* 行動力バー */
+.ap-bar{display:flex;gap:3px;align-items:center;margin-top:.3rem}
+.ap-pip{width:14px;height:14px;border-radius:3px;background:var(--gold);border:1px solid rgba(0,0,0,.2);transition:opacity .15s}
+.ap-pip.empty{background:#d0c0a0;opacity:.45}
+.ap-header{background:rgba(201,162,39,.12);border:1px solid var(--gold);border-radius:6px;padding:.4rem .7rem;margin-bottom:.6rem;display:flex;align-items:center;justify-content:space-between}
+.ap-label{font-size:.72rem;color:var(--ink-light)}
+.ap-val{font-size:.85rem;font-weight:bold;color:var(--wood)}
+/* 季節カード */
+.season-badge{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.75rem;font-weight:bold;margin-right:.4rem}
+.season-spring{background:#e8f5e0;color:#2d6a2d}
+.season-summer{background:#fff3cd;color:#b45300}
+.season-autumn{background:#ffe0b2;color:#8b3a00}
+.season-winter{background:#e3eaf5;color:#2c4a6e}
+.seasonal-action-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem}
+.seasonal-header{padding:.5rem .7rem;border-radius:6px;margin-bottom:.7rem;font-size:.8rem;line-height:1.5}
 /* トレイット固有選択肢 */
 .choice-btn.choice-trait{border-left:3px solid var(--gold);background:rgba(201,162,39,.07)}
 .choice-btn.choice-trait .clabel::before{content:'★ ';color:var(--gold);font-size:.75rem}
@@ -295,8 +310,8 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
     <div class="hstat"><div class="hl">幕府</div><div class="hv" id="h-bakufu">-</div></div>
     <div class="hspacer"></div>
     <span id="h-phase" class="phase-badge phase-s">確立期</span>
-    <button id="btn-skip" title="1年分（12ヶ月）まとめて進める">1年 ▶▶</button>
-    <button id="btn-turn">次の月へ →</button>
+    <button id="btn-skip" title="1年分（4季）まとめて進める">1年 ▶▶</button>
+    <button id="btn-turn">次の季節へ →</button>
   </div>
   <div class="year-progress"><div class="year-progress-bar" id="year-bar"></div></div>
 
@@ -352,6 +367,7 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
     <div class="panel panel-center">
       <div class="tab-bar">
         <button class="tbtn active" onclick="switchTab('events',this)">情勢・出来事</button>
+        <button class="tbtn" onclick="switchTab('season',this)" id="tab-btn-season">🌸 季節</button>
         <button class="tbtn" onclick="switchTab('policy',this)">政策方針</button>
         <button class="tbtn" onclick="switchTab('actions',this)">特別施策</button>
         <button class="tbtn" onclick="switchTab('finance',this)">財政詳細</button>
@@ -359,12 +375,16 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
       <div id="tab-events" class="tcontent active">
         <div id="event-log"></div>
       </div>
+      <div id="tab-season" class="tcontent">
+        <div id="seasonal-header-block"></div>
+        <div class="seasonal-action-grid" id="seasonal-action-grid"></div>
+      </div>
       <div id="tab-policy" class="tcontent">
-        <p style="font-size:.78rem;color:var(--ink-light);margin-bottom:.8rem">方針を選択すると翌月から効果が発動します。</p>
+        <p style="font-size:.78rem;color:var(--ink-light);margin-bottom:.8rem">方針変更には行動力1を消費します（冬の藩政評定後は無料）。</p>
         <div class="policy-grid" id="policy-grid"></div>
       </div>
       <div id="tab-actions" class="tcontent">
-        <p style="font-size:.78rem;color:var(--ink-light);margin-bottom:.8rem">藩主の決断として実施できる特別な施策です。費用と効果を確認して実行してください。</p>
+        <div id="ap-header-block"></div>
         <div class="action-grid" id="action-grid"></div>
       </div>
       <div id="tab-finance" class="tcontent">
@@ -384,9 +404,9 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
       </div>
       <div class="psec">
         <h4>◆ 財政概要</h4>
-        <div class="frow"><div class="flabel">月収入</div><div class="fpos" id="f-income">-</div></div>
-        <div class="frow"><div class="flabel">月支出</div><div class="fneg" id="f-expense">-</div></div>
-        <div class="frow"><div class="flabel">月収支</div><div id="f-balance">-</div></div>
+        <div class="frow"><div class="flabel">季収入</div><div class="fpos" id="f-income">-</div></div>
+        <div class="frow"><div class="flabel">季支出</div><div class="fneg" id="f-expense">-</div></div>
+        <div class="frow"><div class="flabel">季収支</div><div id="f-balance">-</div></div>
         <div class="frow" style="border:none"><div class="flabel">大坂借財</div><div class="fneg" id="f-saikai">-</div></div>
       </div>
       <div class="psec">
@@ -788,44 +808,60 @@ function getPostRetainer(post){ return gs.retainers&&gs.retainers.find(r=>r.post
 
 // Special player-initiated actions
 const SPECIAL_ACTIONS = [
-  { id:'repay',    icon:'💰', title:'借財の返済',   desc:'大坂商人への借財を一部返済し利息の負担を軽減する。',
-    cost:'3000両', cond:g=>g.money>=3000&&g.saikai>0,
+  { id:'repay',    icon:'💰', title:'借財の返済',   ap:1,
+    desc:'大坂商人への借財を一部返済し利息負担を軽減する。',
+    cost:'3,000両', cond:g=>g.money>=3000&&g.saikai>0,
     fn:()=>{ gs.money-=3000; gs.saikai=Math.max(0,gs.saikai-10000); addEvent('good','借財返済','大坂商人への借財10000両を返済した。利息の負担が軽くなった。'); } },
-  { id:'gift',     icon:'🎁', title:'幕府への贈答',  desc:'幕府の重臣へ贈り物をし関係を改善する。年に一度しか実施できない。',
-    cost:'3000両', cd:12,
-    cond:g=>g.money>=3000,
+  { id:'gift',     icon:'🎁', title:'幕府への贈答',  ap:2, cd:4,
+    desc:'幕府の重臣へ贈り物をし関係を改善する。年に一度（4季CD）。秋は効果ボーナス。',
+    cost:'3,000両', cond:g=>g.money>=3000,
     fn:()=>{ gs.money-=3000; gs.bakufu=clamp(gs.bakufu+10,0,100); addEvent('good','贈答工作','幕府重臣への贈答が功を奏し、幕府との関係が改善された。'); } },
-  { id:'relief',   icon:'🌾', title:'農村救済',     desc:'困窮した農民に救済米を配り民心を回復させる。3ヶ月に一度まで。',
-    cost:'2500両', cd:3,
-    cond:g=>g.money>=2500,
-    fn:()=>{ gs.money-=2500; gs.minshin=clamp(gs.minshin+12,0,100); addEvent('good','農村救済','藩の蔵から救済米を配布した。領民の感謝が民心を押し上げた。'); } },
-  { id:'adopt',    icon:'👶', title:'養子縁組',     desc:'有力家中から養子を迎え世継ぎ問題を解消する。',
-    cost:'5000両＋威信-10', cond:g=>!g.heir&&g.money>=5000,
-    fn:()=>{ gs.money-=5000; gs.prestige=clamp(gs.prestige-10,0,100); gs.heir=true; gs.heirAge=10; addEvent('good','養子縁組成立','縁組が成立し世継ぎ問題が解消した。家臣団の安堵感が広がっている。'); } },
-  { id:'suppress', icon:'⚔️', title:'一揆鎮圧出兵', desc:'不穏な農村地域に藩兵を派遣し秩序を回復する。6ヶ月に一度まで。',
-    cost:'2000両', cd:6,
-    cond:g=>g.money>=2000&&g.minshin<55&&g.military>30,
-    fn:()=>{ gs.money-=2000; gs.minshin=clamp(gs.minshin+8,0,100); gs.military=clamp(gs.military-3,0,100); addEvent('info','鎮圧出兵','藩兵を派遣し不穏な動きを抑えた。一時的に秩序が回復した。'); } },
-  { id:'monopoly', icon:'🏪', title:'専売令の布告',  desc:'特産品の専売を藩が独占し直接収益を得る。民心と商人関係が悪化する。',
-    cost:'なし（効果：収入+10%、民心-8）', cond:g=>!g.monopoly,
-    fn:()=>{ gs.monopoly=true; gs.minshin=clamp(gs.minshin-8,0,100); gs.incomeBonus=(gs.incomeBonus||0)+.10; addEvent('info','専売令布告','特産品の専売令を布告した。商人から反発の声が上がっているが、収益が増加した。'); } },
-  { id:'medical',  icon:'💊', title:'藩主の療養',   desc:'藩主の健康を回復させるため名医を招く。6ヶ月に一度まで。',
-    cost:'1500両', cd:6,
-    cond:g=>g.money>=1500&&g.lord.health<14,
-    fn:()=>{ gs.money-=1500; gs.lord.health=Math.min(20,gs.lord.health+5); addEvent('good','療養','名医を招き藩主の健康が回復した。'); } },
-  { id:'recruit',  icon:'🗡️', title:'兵の徴集',    desc:'農民から兵を徴集し軍事力を増強する。4ヶ月に一度まで。民心が微減する。',
-    cost:'2000両', cd:4,
-    cond:g=>g.money>=2000&&g.military<90,
-    fn:()=>{ gs.money-=2000; gs.military=clamp(gs.military+10,0,100); gs.minshin=clamp(gs.minshin-3,0,100); addEvent('info','兵の徴集','農村から兵を徴集し軍事力が増強された。'); } },
-  { id:'banquet',  icon:'🍶', title:'慰労の宴',     desc:'家臣団を招き慰労の宴を開く。全家臣の忠誠心が回復する。8ヶ月に一度まで。',
-    cost:'2000両', cd:8,
-    cond:g=>g.money>=2000&&g.retainers&&g.retainers.length>0,
-    fn:()=>{ gs.money-=2000; gs.retainers.forEach(r=>{ r.loyalty=clamp(r.loyalty+15,0,100); }); addEvent('good','慰労の宴','家臣団を招いて宴を催した。皆の忠誠心が大きく回復した。'); } },
-  { id:'ronin',    icon:'🧑‍⚔️', title:'浪人の登用',  desc:'各地の浪人から有能な人材を探し出し藩士として取り立てる。年に一度まで。',
-    cost:'2000両', cd:12,
-    cond:g=>g.money>=2000&&(!g.retainers||g.retainers.length<12),
+  { id:'relief',   icon:'🌾', title:'農村救済',     ap:1, cd:1,
+    desc:'救済米を配り民心を回復させる。夏は効果+30%、秋は費用-500両。（1季CD）',
+    cost:'2,500両', cond:g=>g.money>=2500,
     fn:()=>{
-      gs.money-=2000;
+      const s=getSeason(); const mult=s==='summer'?1.3:1.0; const disc=s==='autumn'?500:0;
+      gs.money-=(2500-disc); gs.minshin=clamp(gs.minshin+Math.round(12*mult),0,100);
+      addEvent('good','農村救済',`藩の蔵から救済米を配布した。民心が${Math.round(12*mult)}回復した。`);
+    } },
+  { id:'adopt',    icon:'👶', title:'養子縁組',     ap:2,
+    desc:'有力家中から養子を迎え世継ぎ問題を解消する。',
+    cost:'5,000両＋威信-10', cond:g=>!g.heir&&g.money>=5000,
+    fn:()=>{ gs.money-=5000; gs.prestige=clamp(gs.prestige-10,0,100); gs.heir=true; gs.heirAge=10; addEvent('good','養子縁組成立','縁組が成立し世継ぎ問題が解消した。家臣団の安堵感が広がっている。'); } },
+  { id:'suppress', icon:'⚔️', title:'一揆鎮圧出兵', ap:2, cd:2,
+    desc:'不穏な農村に藩兵を派遣し秩序を回復する。（2季CD）',
+    cost:'2,000両', cond:g=>g.money>=2000&&g.minshin<55&&g.military>30,
+    fn:()=>{ gs.money-=2000; gs.minshin=clamp(gs.minshin+8,0,100); gs.military=clamp(gs.military-3,0,100); addEvent('info','鎮圧出兵','藩兵を派遣し不穏な動きを抑えた。一時的に秩序が回復した。'); } },
+  { id:'monopoly', icon:'🏪', title:'専売令の布告',  ap:2,
+    desc:'特産品の専売を独占し収益を得る。民心と商人関係が悪化する。',
+    cost:'なし（収入+10%・民心-8）', cond:g=>!g.monopoly,
+    fn:()=>{ gs.monopoly=true; gs.minshin=clamp(gs.minshin-8,0,100); gs.incomeBonus=(gs.incomeBonus||0)+.10; addEvent('info','専売令布告','特産品の専売令を布告した。収益が増加したが商人から反発の声が上がっている。'); } },
+  { id:'medical',  icon:'💊', title:'藩主の療養',   ap:1, cd:2,
+    desc:'名医を招き藩主の健康を回復させる。冬は効果+50%。（2季CD）',
+    cost:'1,500両', cond:g=>g.money>=1500&&g.lord.health<14,
+    fn:()=>{
+      const mult=getSeason()==='winter'?1.5:1.0;
+      gs.money-=1500; gs.lord.health=Math.min(20,gs.lord.health+Math.round(5*mult));
+      addEvent('good','療養',`名医を招き藩主の健康が${Math.round(5*mult)}回復した。`);
+    } },
+  { id:'recruit',  icon:'🗡️', title:'兵の徴集',    ap:2, cd:2,
+    desc:'農民から兵を徴集し軍事力を増強する。春は効果半減。冬は使用不可。（2季CD）',
+    cost:'2,000両', cond:g=>g.money>=2000&&g.military<90&&getSeason()!=='winter',
+    fn:()=>{
+      const mult=getSeason()==='spring'?0.5:1.0;
+      gs.money-=2000; gs.military=clamp(gs.military+Math.round(10*mult),0,100); gs.minshin=clamp(gs.minshin-3,0,100);
+      addEvent('info','兵の徴集',`農村から兵を徴集した。軍事力が${Math.round(10*mult)}増強された。`);
+    } },
+  { id:'banquet',  icon:'🍶', title:'慰労の宴',     ap:1, cd:3,
+    desc:'家臣団を招き宴を開く。全家臣忠誠+15。夏は使用不可。（3季CD）',
+    cost:'2,000両', cond:g=>g.money>=2000&&g.retainers&&g.retainers.length>0&&getSeason()!=='summer',
+    fn:()=>{ gs.money-=2000; gs.retainers.forEach(r=>r.loyalty=clamp(r.loyalty+15,0,100)); addEvent('good','慰労の宴','家臣団を招いて宴を催した。皆の忠誠心が大きく回復した。'); } },
+  { id:'ronin',    icon:'🧑‍⚔️', title:'浪人の登用',  ap:2, cd:4,
+    desc:'有能な浪人を探し出し藩士として取り立てる。春は費用-500両。（4季CD）',
+    cost:'2,000両', cond:g=>g.money>=2000&&(!g.retainers||g.retainers.length<12),
+    fn:()=>{
+      const disc=getSeason()==='spring'?500:0;
+      gs.money-=(2000-disc);
       const pool=['山田源三郎','中村半四郎','田中又兵衛','鈴木六郎','高橋権之助','小林清之進','渡辺弥七','佐藤源五郎','伊藤兵助','木村半左衛門','岡本利助','前川甚三'];
       const used=(gs.retainers||[]).map(r=>r.name);
       const avail=pool.filter(n=>!used.includes(n));
@@ -835,52 +871,52 @@ const SPECIAL_ACTIONS = [
       const stats={ seiji:rng(3,8),sanjutsu:rng(3,8),buryaku:rng(3,8),gaiko:rng(3,8) };
       const best=Object.entries(stats).reduce((b,e)=>e[1]>b[1]?e:b,['seiji',0]);
       const bestLabel={seiji:'政治',sanjutsu:'算術',buryaku:'武略',gaiko:'外交'}[best[0]];
-      const newR={ id:'r_'+gs.turns, name, post:null, ...stats, faction:factions[rng(0,3)], loyalty:rng(55,75), age:rng(25,42) };
-      if(!gs.retainers) gs.retainers=[];
-      gs.retainers.push(newR);
-      addEvent('good','浪人登用',`${name}を新たに藩士として取り立てた。得意：${bestLabel}${best[1]}。`);
+      gs.retainers=gs.retainers||[];
+      gs.retainers.push({ id:'r_'+gs.turns, name, post:null, ...stats, faction:factions[rng(0,3)], loyalty:rng(55,75), age:rng(25,42) });
+      addEvent('good','浪人登用',`${name}を新たに藩士として取り立てた（得意：${bestLabel}${best[1]}）${disc?'春の好機で費用割引あり':''}。`);
     } },
-  { id:'yosiki',   icon:'🔫', title:'洋式調練',     desc:'西洋式の兵術を導入し軍の装備・練度を近代化する。蘭学30以上が必要。最大Lv3まで。',
-    cost:'5000両', cond:g=>g.rankaku>=30&&g.money>=5000&&g.mil&&g.mil.equipment<3,
-    fn:()=>{ gs.money-=5000; gs.mil.equipment++; gs.military=clamp(gs.military+15,0,100); syncMilitary(); addEvent('good','洋式調練',`西洋式の兵術を導入した。装備が洋式Lv${gs.mil.equipment}に向上し戦力が増強された。`); } },
+  { id:'yosiki',   icon:'🔫', title:'洋式調練',     ap:3,
+    desc:'西洋式の兵術を導入し軍を近代化する。蘭学30以上・最大Lv3まで。',
+    cost:'5,000両', cond:g=>g.rankaku>=30&&g.money>=5000&&g.mil&&g.mil.equipment<3,
+    fn:()=>{ gs.money-=5000; gs.mil.equipment++; gs.military=clamp(gs.military+15,0,100); syncMilitary(); addEvent('good','洋式調練',`西洋式の兵術を導入した。装備が洋式Lv${gs.mil.equipment}に向上した。`); } },
 ];
 
 // ========================== FACILITIES ==========================
 const FACILITIES = [
-  { id:'shinden', name:'新田開発',   icon:'🌾', cost:8000,  months:8,
+  { id:'shinden', name:'新田開発',   icon:'🌾', cost:8000,  months:8,  seasons:3,
     perm:{ kokuMod:.03 }, unique:true, cond:()=>true,
-    desc:'未開地を開墾し石高を恒久的に3%増加させる。長期収入の基盤が強化される。維持費：月250両',
+    desc:'未開地を開墾し石高を恒久的に3%増加させる。長期収入の基盤が強化される。維持費：季750両',
     completeMsg:'新田の開墾が完成した。石高が3%増加した。' },
-  { id:'minato',  name:'港の整備',   icon:'⚓', cost:12000, months:6,
+  { id:'minato',  name:'港の整備',   icon:'⚓', cost:12000, months:6,  seasons:2,
     perm:{ incomeBonus:.10 }, unique:true,
     cond:g=>['satsuma','kaga','tosa','sendai','hikone'].includes(g.dom.id),
-    desc:'港湾を整備し海運による交易を活発化する。収入が恒久的に10%増加する。（沿岸藩のみ）維持費：月250両',
+    desc:'港湾を整備し海運による交易を活発化する。収入が恒久的に10%増加する。（沿岸藩のみ）維持費：季750両',
     completeMsg:'港が整備された。海運交易により収入が恒久的に10%増加した。' },
-  { id:'shukuba', name:'宿場町整備', icon:'🏘️', cost:6000,  months:4,
+  { id:'shukuba', name:'宿場町整備', icon:'🏘️', cost:6000,  months:4,  seasons:2,
     perm:{ minshinCap:5 }, unique:true, cond:()=>true,
-    desc:'街道の宿場町を整え領内の往来を活発にする。民心の上限が5上昇する。維持費：月250両',
+    desc:'街道の宿場町を整え領内の往来を活発にする。民心の上限が5上昇する。維持費：季750両',
     completeMsg:'宿場町が整備された。民心の上限が5上昇した。' },
-  { id:'chisui',  name:'治水工事',   icon:'🌊', cost:9000,  months:7,
+  { id:'chisui',  name:'治水工事',   icon:'🌊', cost:9000,  months:7,  seasons:3,
     perm:{ disasterMod:-.5 }, unique:true, cond:()=>true,
-    desc:'河川の治水を行い洪水・旱魃・地震による被害を大幅に軽減する。維持費：月250両',
+    desc:'河川の治水を行い洪水・旱魃・地震による被害を大幅に軽減する。維持費：季750両',
     completeMsg:'治水工事が完了した。自然災害による被害が大幅に軽減される。' },
-  { id:'hankko',  name:'藩校設立',   icon:'📚', cost:10000, months:6,
+  { id:'hankko',  name:'藩校設立',   icon:'📚', cost:10000, months:6,  seasons:2,
     perm:{ rankakuBonus:10 }, unique:true, cond:()=>true,
-    desc:'藩士の子弟を教育し人材を育てる。蘭学知識が+10され、以後の蘭学上昇も速くなる。維持費：月250両',
+    desc:'藩士の子弟を教育し人材を育てる。蘭学知識が+10され、以後の蘭学上昇も速くなる。維持費：季750両',
     completeMsg:'藩校が開校された。藩士の教育水準が上がり、蘭学知識が大きく向上した。' },
-  { id:'kozan',   name:'鉱山開発',   icon:'⛏️', cost:15000, months:10,
+  { id:'kozan',   name:'鉱山開発',   icon:'⛏️', cost:15000, months:10, seasons:4,
     perm:{ incomeBonus:.15 }, unique:true,
     cond:g=>['kaga','sendai','mito','tosa'].includes(g.dom.id),
-    desc:'山中の鉱山を開発し採掘収益を得る。収入が恒久的に15%増加する。（特定藩のみ）維持費：月250両',
+    desc:'山中の鉱山を開発し採掘収益を得る。収入が恒久的に15%増加する。（特定藩のみ）維持費：季750両',
     completeMsg:'鉱山の開発が完了した。採掘収益により収入が恒久的に15%増加した。' },
-  { id:'shiro',   name:'城郭強化',   icon:'🏯', cost:12000, months:8,
+  { id:'shiro',   name:'城郭強化',   icon:'🏯', cost:12000, months:8,  seasons:3,
     perm:{ militaryCap:15 }, unique:true, cond:()=>true,
-    desc:'城を修築し防衛力を高める。軍事力の上限が15上昇する。維持費：月250両',
+    desc:'城を修築し防衛力を高める。軍事力の上限が15上昇する。維持費：季750両',
     completeMsg:'城郭の修築が完了した。軍事力の上限が15上昇した。' },
-  { id:'machiya', name:'商人街整備', icon:'🏪', cost:8000,  months:5,
+  { id:'machiya', name:'商人街整備', icon:'🏪', cost:8000,  months:5,  seasons:2,
     perm:{ incomeBonus:.07, minshinCap:3 }, unique:true,
     cond:g=>g.builtFacilities&&g.builtFacilities.includes('shukuba'), // 宿場町整備が前提
-    desc:'城下の商人街を整備し経済を活性化する。収入+7%、民心の上限+3。※宿場町整備が必要。維持費：月250両',
+    desc:'城下の商人街を整備し経済を活性化する。収入+7%、民心の上限+3。※宿場町整備が必要。維持費：季750両',
     completeMsg:'商人街の整備が完了した。収入が7%増加し、民心の上限も3上昇した。' },
 ];
 
@@ -890,7 +926,7 @@ const LORD_TRAITS = [
     desc:'外来の知識を積極的に取り入れる。蘭学知識が上昇し、門閥への圧力が緩む。' },
   { key:'hoshu',    label:'保守的',   t:'negative', ef:{ rankakuD:-.03, monbatsuD:.05 },
     desc:'旧来の秩序を重んじる。蘭学の普及は遅れるが、門閥派からの信頼は厚い。' },
-  { key:'goki',     label:'剛毅',     t:'positive', ef:{ bakufuD:.1, milD:.2 },
+  { key:'goki',     label:'剛毅',     t:'positive', ef:{ bakufuD:.1, milD:.2, apBonus:1 },
     desc:'意志が強くプレッシャーに動じない。幕府心象が安定し、軍事力も向上しやすい。' },
   { key:'okubyou',  label:'臆病',     t:'negative', ef:{ bakufuD:-.1 },
     desc:'決断を避け幕府の顔色を伺いすぎる傾向がある。' },
@@ -923,7 +959,7 @@ const LORD_TRAITS = [
     desc:'正直で曲がったことが嫌い。威信が保たれやすく、幕府への誠実な対応で特別な選択肢が出る。' },
   { key:'kokatsu',  label:'狡猾',     t:'neutral',  ef:{ minshinD:-.05, prestigeD:.1 },
     desc:'策略を好む。謀略・工作系イベントで特別な選択肢が出る。' },
-  { key:'hakushiki',label:'博識',     t:'positive', ef:{ rankakuD:.12 },
+  { key:'hakushiki',label:'博識',     t:'positive', ef:{ rankakuD:.12, apBonus:1 },
     desc:'広い知識を持つ。蘭学知識が蓄積されやすく、技術・治水・農業イベントで有利な選択肢が出る。' },
   { key:'goho',     label:'豪放',     t:'neutral',  ef:{ minshinD:.15, expMod:.05 },
     desc:'大らかで豪快な性格。民心が自然と上昇するが、支出も増えやすい。宴席・交流系イベントで効果が増す。' },
@@ -934,7 +970,7 @@ const LORD_TRAITS = [
 // nextStep が null のステップで終了。delay は次ステップまでの月数。
 const EVENT_CHAINS = [
   // ── 凶作の連鎖 ──────────────────────────────────────
-  { id:'famine_chain', w:6, cooldown:120, cond:g=>g.year>=1650&&g.minshin<78,
+  { id:'famine_chain', w:6, cooldown:40, cond:g=>g.year>=1650&&g.minshin<78,
     startStep:'start',
     steps:{
       start:{
@@ -944,13 +980,13 @@ const EVENT_CHAINS = [
         choices:[
           { label:'備蓄米を事前に放出して農民を支援する', cls:'c-good',
             effect:'蔵を開き早めの支援を行った。財政は痛むが農民は安堵した。',
-            ef:{moneyD:-1500}, nextStep:'early_relief', delay:3 },
+            ef:{moneyD:-1500}, nextStep:'early_relief', delay:1 },
           { label:'他藩から食料を買い付けて備蓄する', cls:'',
             effect:'急ぎ他藩との交渉に入った。費用はかかるが確実な手だ。',
-            ef:{moneyD:-2500}, nextStep:'buy_food', delay:2 },
+            ef:{moneyD:-2500}, nextStep:'buy_food', delay:1 },
           { label:'様子を見る（今は動かない）', cls:'c-danger',
             effect:'まだ確かな被害が出ていない。しばらく静観することにした。',
-            ef:{}, nextStep:'wait', delay:3 },
+            ef:{}, nextStep:'wait', delay:1 },
         ]
       },
       early_relief:{
@@ -981,7 +1017,7 @@ const EVENT_CHAINS = [
             ef:{moneyD:-3000}, nextStep:'late_relief', delay:1 },
           { label:'逃散阻止のため武力を行使する', cls:'c-danger',
             effect:'武力で農民を縛り付けようとした。強引な手段はさらなる恨みを買う。',
-            ef:{}, nextStep:'suppress_fail', delay:1 },
+            ef:{}, nextStep:'suppress_fail', delay:1 },  // delay:1 season
         ]
       },
       late_relief:{
@@ -998,7 +1034,7 @@ const EVENT_CHAINS = [
   },
 
   // ── 家臣の汚職 ──────────────────────────────────────
-  { id:'corruption_chain', w:4, cooldown:180, cond:()=>true,
+  { id:'corruption_chain', w:4, cooldown:60, cond:()=>true,
     startStep:'start',
     steps:{
       start:{
@@ -1008,10 +1044,10 @@ const EVENT_CHAINS = [
         choices:[
           { label:'直ちに内密に調査を命じる', cls:'c-good',
             effect:'信頼できる家臣に密かに調査を命じた。結果が出るまでしばらくかかる。',
-            ef:{prestigeD:-2}, nextStep:'investigate', delay:2 },
+            ef:{prestigeD:-2}, nextStep:'investigate', delay:1 },
           { label:'証拠がない今は見て見ぬふりをする', cls:'c-danger',
             effect:'確たる証拠もなく動くのはリスクが高い。しばらく様子を見ることにした。',
-            ef:{}, nextStep:'ignore', delay:3 },
+            ef:{}, nextStep:'ignore', delay:1 },
         ]
       },
       investigate:{
@@ -1024,7 +1060,7 @@ const EVENT_CHAINS = [
             ef:{prestigeD:5, moneyD:300}, nextStep:'punish', delay:1 },
           { label:'穏便に諭し穴埋めさせる（穏便処理）', cls:'',
             effect:'家中の体面を守るため穏便に処理した。波風は立たなかった。',
-            ef:{}, nextStep:'cover', delay:1 },
+            ef:{}, nextStep:'cover', delay:1 },  // delay in seasons
         ]
       },
       ignore:{
@@ -1037,7 +1073,7 @@ const EVENT_CHAINS = [
             ef:{prestigeD:2}, nextStep:'punish_late', delay:1 },
           { label:'幕府に知られる前に全力で隠蔽する', cls:'c-danger',
             effect:'必死に隠蔽工作を行った。しかしいつ露見するか…。',
-            ef:{moneyD:-2000}, nextStep:'exposed', delay:2 },
+            ef:{moneyD:-2000}, nextStep:'exposed', delay:1 },
         ]
       },
       punish:{
@@ -1064,7 +1100,7 @@ const EVENT_CHAINS = [
   },
 
   // ── 商人の返済要求 ──────────────────────────────────
-  { id:'debt_chain', w:5, cooldown:150, cond:g=>g.saikai>g.koku*1.0&&g.year>=1620,
+  { id:'debt_chain', w:5, cooldown:50, cond:g=>g.saikai>g.koku*1.0&&g.year>=1620,
     startStep:'start',
     steps:{
       start:{
@@ -1077,10 +1113,10 @@ const EVENT_CHAINS = [
             ef:{moneyD:-5000, saikaiD:-8000, prestigeD:5}, nextStep:null },
           { label:'猶予を交渉する（500両の手数料）', cls:'',
             effect:'交渉の席を設けた。500両の手数料を払い、交渉が始まった。',
-            ef:{moneyD:-500}, nextStep:'negotiate', delay:2 },
+            ef:{moneyD:-500}, nextStep:'negotiate', delay:1 },
           { label:'踏み倒す（当面は返済しない）', cls:'c-danger',
             effect:'返済を拒否した。商人は怒って立ち去ったが、この先どうなるか…。',
-            ef:{}, nextStep:'renege', delay:3 },
+            ef:{}, nextStep:'renege', delay:1 },
         ]
       },
       negotiate:{
@@ -1089,7 +1125,7 @@ const EVENT_CHAINS = [
         ef:{},
         choices:[
           { label:'分割返済に合意し着実に返していく', cls:'c-good',
-            effect:'分割返済の計画を立てた。毎月の返済で借財が少しずつ減っていく。',
+            effect:'分割返済の計画を立てた。毎季の返済で借財が少しずつ減っていく。',
             ef:{moneyD:-2000, saikaiD:-5000}, nextStep:'repay_plan', delay:1 },
           { label:'さらに追加融資を引き出す', cls:'c-danger',
             effect:'追加融資を受けた。その場しのぎだが、借財はさらに膨らんだ。',
@@ -1123,7 +1159,7 @@ const EVENT_CHAINS = [
   },
 
   // ── 改革の試み ──────────────────────────────────────
-  { id:'reform_chain', w:4, cooldown:200, cond:g=>g.year>=1750&&g.minshin>55&&g.money>3000,
+  { id:'reform_chain', w:4, cooldown:67, cond:g=>g.year>=1750&&g.minshin>55&&g.money>3000,
     startStep:'start',
     steps:{
       start:{
@@ -1133,10 +1169,10 @@ const EVENT_CHAINS = [
         choices:[
           { label:'大胆な改革を断行する', cls:'c-good',
             effect:'改革の旗を高く掲げた。家中が揺れるが、変革の機運が高まった。',
-            ef:{minshinD:3, monbatsuD:-10}, nextStep:'rapid', delay:2 },
+            ef:{minshinD:3, monbatsuD:-10}, nextStep:'rapid', delay:1 },
           { label:'慎重に段階的な改革を進める', cls:'',
             effect:'急がず着実に、という方針で改革に着手した。',
-            ef:{}, nextStep:'gradual', delay:4 },
+            ef:{}, nextStep:'gradual', delay:2 },
           { label:'今は時期尚早として棚上げにする', cls:'c-danger',
             effect:'改革派は失望したが、家中の反発も避けられた。',
             ef:{monbatsuD:8, minshinD:-3}, nextStep:null },
@@ -1172,7 +1208,7 @@ function newState(domId) {
   const dom = DOMAINS.find(d=>d.id===domId);
   const lord = makeLord(dom);
   return {
-    year:1603, month:1,
+    year:1603, month:1,   // month は季節の代表月: 1=春 4=夏 7=秋 10=冬
     dom,
     koku:dom.baseKoku,
     money:dom.startMoney,
@@ -1183,9 +1219,9 @@ function newState(domId) {
     bakufu:dom.startBakufu,
     military:30,
     lord,
-    policies:{ finance:1, military:0, domestic:0, education:0, shogunate:1 }, // デフォルト：重商主義 + 面従腹背（赤字になりにくい組み合わせ）
+    policies:{ finance:1, military:0, domestic:0, education:0, shogunate:1 }, // デフォルト：重商主義 + 面従腹背
     monbatsu:65, jitsuryoku:35,
-    sankin:{ inEdo:false, edoMonths:0, nextSankin:(1603*12+18) }, // 最初の参勤は1.5年後
+    sankin:{ inEdo:false, edoSeasons:0, nextSankin:(1603*4+1+6) }, // 最初の参勤は6季（1.5年）後
     turnEvents:[], // 今ターンで起きたイベント
     heir:true, heirAge:Math.random()<.6?rng(1,14):null,
     monopoly:false, incomeBonus:0,
@@ -1194,7 +1230,7 @@ function newState(domId) {
     prevStats:{minshin:dom.startMinshin, bakufu:dom.startBakufu, money:dom.startMoney},
     yearRecord:[],      // 年次記録
     // --- 城下町開発 ---
-    construction: null,           // { facilityId, monthsLeft, totalMonths }
+    construction: null,           // { facilityId, seasonsLeft, totalSeasons }
     builtFacilities: [],          // 完成済み施設IDの配列
     facEffects: { incomeBonus:0, minshinCap:0, militaryCap:0, disasterMod:0, rankakuSpeedBonus:0 },
     // --- 家臣・重臣 ---
@@ -1204,8 +1240,14 @@ function newState(domId) {
     // --- 軍事力の実体化 ---
     mil: { troops:0, equipment:0 }, // equipment: 0=旧式 1〜3=洋式Lv
     tobafushimiDone: false,
+    // --- 行動力（AP） ---
+    ap: 0, maxAP: 0,   // startGame() で calcMaxAP() を呼んで初期化
+    // --- 季節効果フラグ ---
+    seasonBonus: {},   // { tanue:true } など
+    seasonShield: {},  // { ekibi:true, teibo:true, bichiku:true } など
+    freePolicy: false, // 藩政評定で解放
     // --- 特別行動クールダウン ---
-    actionCooldowns: {},  // { actionId: 解禁ターン(year*12+month) }
+    actionCooldowns: {},  // { actionId: 解禁ターン(curTurnN) }
     // --- イベントチェーン ---
     activeChains: [],             // [{ chainId, stepId, triggerTurn }]
     chainCooldowns: {},           // { chainId: lastTriggerTurn }
@@ -1229,19 +1271,32 @@ function makeLord(dom) {
 
 function rng(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 
+function calcMaxAP() {
+  if(!gs) return 2;
+  let ap = 2 + Math.floor((gs.lord.politics||10)/5); // 政治20で+4, 計6
+  for(const t of gs.lord.traits) if(t.ef && t.ef.apBonus) ap += t.ef.apBonus;
+  const karoR = getPostRetainer('karo');
+  if(karoR && karoR.seiji >= 8) ap++; // 家老が優秀なら+1
+  return Math.min(ap, 7); // 上限7
+}
+
 // ========================== LOGIC ==========================
 
 function calcIncome() {
   const pol=gs.policies;
-  let incMod=1.0;
+  const si=SEASON_INFO[getSeason()];
+  let incMod=si.incMod; // 季節修飾（春1.00 夏0.95 秋1.20 冬0.85）
   if(pol.finance===1) incMod+=.15;
   if(pol.shogunate===1) incMod+=.05;
   incMod+=(gs.incomeBonus||0);
   incMod+=(gs.facEffects&&gs.facEffects.incomeBonus||0);
   const kanjoR=getPostRetainer('kanjo');
   if(kanjoR) incMod+=kanjoR.sanjutsu*0.004; // 算術10で+4%
-  const base=gs.koku*0.33/12*incMod;
-  const prod=gs.dom.products.length*200;
+  const base=gs.koku*0.33/4*incMod; // 季次（月次÷12×3＝÷4）
+  // 特産品収入: 月次200→季次600
+  let prod=gs.dom.products.length*600;
+  // 田植え支援の秋ボーナス
+  if(gs.seasonBonus&&gs.seasonBonus.tanue&&getSeason()==='autumn') prod=Math.floor(prod*1.20);
   const lordMod=1+(gs.lord.politics-10)*.01;
   const minshinMod=gs.minshin>=80?1.12:gs.minshin<=30?0.72:1.0;
   return Math.floor((base+prod)*lordMod*minshinMod);
@@ -1249,7 +1304,8 @@ function calcIncome() {
 
 function calcExpense() {
   const pol=gs.policies;
-  let expMod=1.0;
+  const si=SEASON_INFO[getSeason()];
+  let expMod=si.expMod; // 季節修飾（春1.00 夏1.05 秋1.00 冬1.10）
   if(pol.finance===0) expMod-=.10;
   if(pol.military===0) expMod+=.08;
   if(pol.military===1) expMod+=.15;
@@ -1261,12 +1317,42 @@ function calcExpense() {
   for(const t of gs.lord.traits) if(t.ef.expMod) expMod+=t.ef.expMod;
   const gunjiR=getPostRetainer('gunji');
   if(gunjiR) expMod-=gunjiR.buryaku*0.002; // 武略10で軍事費-2%効率
-  const base=gs.koku*0.25/12*expMod;
-  const edo=gs.dom.baseKoku*0.018/12;
-  const sankinCost=gs.sankin.inEdo?gs.dom.edoDist*100+600:0;
-  const interest=gs.saikai*0.005; // 月0.5%（年6%）
-  const facUpkeep=(gs.builtFacilities||[]).length*250; // 施設1棟あたり月250両の維持費
+  const base=gs.koku*0.25/4*expMod; // 季次（÷4）
+  const edo=gs.dom.baseKoku*0.018/4;
+  const sankinCost=gs.sankin.inEdo?(gs.dom.edoDist*100+600)*3:0; // 季次（月次×3）
+  const interest=gs.saikai*0.015; // 季0.5%×3（年6%）
+  const facUpkeep=(gs.builtFacilities||[]).length*750; // 月250両×3季
   return Math.floor(base+edo+sankinCost+interest+facUpkeep);
+}
+
+// ========================== 季節進行 ==========================
+function advanceSeason() {
+  // 冬（month=10）の処理後に年をまたぐ
+  const yearChanges = gs.month === 10;
+  if(yearChanges) {
+    // 年中行事費（年に一度）
+    const ceremony=Math.floor(gs.koku*0.004);
+    gs.money=Math.max(0,gs.money-ceremony);
+    if(ceremony>0) addEvent('info','年中行事',`正月・祭礼等の年中行事費${fmt(ceremony)}を支出した。`);
+    recordYear();
+    // 藩主・世継ぎの老化（年1回）
+    gs.lord.age++;
+    const age=gs.lord.age;
+    const decay = age>=75?1.5 : age>=65?1.0 : age>=50?0.5 : 0;
+    if(decay>0) gs.lord.health=Math.max(0,gs.lord.health-decay);
+    if(gs.heir&&gs.heirAge!==null) gs.heirAge++;
+  }
+  // 月を3進める（季次進行: 1→4→7→10→1(次年)）
+  gs.month += 3;
+  if(gs.month > 12){ gs.month=1; gs.year++; }
+  // 季節フラグをリセット
+  gs.seasonBonus={};
+  gs.seasonShield={};
+  gs.freePolicy=false;
+  // 行動力（AP）をリセット
+  gs.maxAP=calcMaxAP();
+  gs.ap=gs.maxAP;
+  gs.turns++;
 }
 
 function processTurn() {
@@ -1289,73 +1375,65 @@ function processTurn() {
   checkHist();
   checkKaiyaku();
   updateTobaku();
-  if(gs.month===12){
-    // 年中行事費（正月・盆・祭礼等の年次出費）
-    const ceremony=Math.floor(gs.koku*0.004);
-    gs.money=Math.max(0,gs.money-ceremony);
-    if(ceremony>0) addEvent('info','年中行事',`正月・祭礼等の年中行事費${fmt(ceremony)}を支出した。`);
-    recordYear();
-  }
   gs.prevStats={minshin:gs.minshin, bakufu:gs.bakufu, money:gs.money};
   if(!pendingChoice) {
     checkGameOver();
-    if(!gs.gameOver){ gs.month++; if(gs.month>12){gs.month=1;gs.year++;} gs.turns++; renderAll(); }
+    if(!gs.gameOver){ advanceSeason(); renderAll(); }
   }
 }
 
 function applyStats() {
   const pol=gs.policies;
-  // 民心: 60への収束を強め、policy効果を軽減
-  let md=(60-gs.minshin)*.02;  // 収束係数を0.012→0.02に強化
-  if(pol.finance===0) md-=.3; if(pol.finance===1) md+=.3;  // 0.5→0.3に軽減
-  if(pol.domestic===1) md+=.3;
-  for(const t of gs.lord.traits) if(t.ef.minshinD) md+=t.ef.minshinD;
+  const Q=3; // 季次倍率（月次×3=季次と同等年次効果）
+
+  // 民心: 60への収束 + 政策効果
+  let md=(60-gs.minshin)*.02*Q;
+  if(pol.finance===0) md-=.3*Q; if(pol.finance===1) md+=.3*Q;
+  if(pol.domestic===1) md+=.3*Q;
+  for(const t of gs.lord.traits) if(t.ef.minshinD) md+=t.ef.minshinD*Q;
   const karoR=getPostRetainer('karo');
-  if(karoR) md+=karoR.seiji*0.03; // 政治10で+0.3/月
+  if(karoR) md+=karoR.seiji*0.03*Q; // 政治10で+0.9/季
   gs.minshin=clamp(gs.minshin+md,0,100+(gs.facEffects&&gs.facEffects.minshinCap||0));
 
-  // 幕府心象: 財政破綻・赤字が続くと幕府の評判も下がる
-  let bd=(50-gs.bakufu)*.003;
-  if(pol.shogunate===0) bd+=1.2; if(pol.shogunate===1) bd-=.4;
-  if(pol.military===1) bd-=0.8;
-  for(const t of gs.lord.traits) if(t.ef.bakufuD) bd+=t.ef.bakufuD;
+  // 幕府心象
+  let bd=(50-gs.bakufu)*.003*Q;
+  if(pol.shogunate===0) bd+=1.2*Q; if(pol.shogunate===1) bd-=.4*Q;
+  if(pol.military===1) bd-=0.8*Q;
+  for(const t of gs.lord.traits) if(t.ef.bakufuD) bd+=t.ef.bakufuD*Q;
   const gaikoR=getPostRetainer('gaiko');
-  if(gaikoR) bd+=gaikoR.gaiko*0.02; // 外交10で+0.2/月
-  // 財政難が続くと幕府の信頼も下がる
-  if(gs.money===0) bd-=.3;
-  if(gs.saikai>gs.koku*1.5) bd-=.5;
+  if(gaikoR) bd+=gaikoR.gaiko*0.02*Q;
+  if(gs.money===0) bd-=.3*Q;
+  if(gs.saikai>gs.koku*1.5) bd-=.5*Q;
   gs.bakufu=clamp(gs.bakufu+bd,0,100);
 
-  let rd=pol.education===1?1.8:0;
-  if(gs.year>1750) rd+=.2;
-  for(const t of gs.lord.traits) if(t.ef.rankakuD) rd+=t.ef.rankakuD;
-  rd+=(gs.facEffects&&gs.facEffects.rankakuSpeedBonus||0); // 藩校による加速
+  // 蘭学
+  let rd=pol.education===1?1.8*Q:0;
+  if(gs.year>1750) rd+=.2*Q;
+  for(const t of gs.lord.traits) if(t.ef.rankakuD) rd+=t.ef.rankakuD*Q;
+  rd+=(gs.facEffects&&gs.facEffects.rankakuSpeedBonus||0)*Q;
   gs.rankaku=clamp(gs.rankaku+rd,0,100);
 
-  let mld=(pol.military===1?1.5:.3);
-  for(const t of gs.lord.traits) if(t.ef.milD) mld+=t.ef.milD;
+  // 軍事力
+  let mld=(pol.military===1?1.5:.3)*Q;
+  for(const t of gs.lord.traits) if(t.ef.milD) mld+=t.ef.milD*Q;
   gs.military=clamp(gs.military+mld*.08,0,100+(gs.facEffects&&gs.facEffects.militaryCap||0));
 
-  let pd=(50-gs.prestige)*.005;
-  if(pol.education===0) pd+=.3; if(pol.shogunate===0) pd+=.5;
-  for(const t of gs.lord.traits) if(t.ef.prestigeD) pd+=t.ef.prestigeD;
+  // 威信
+  let pd=(50-gs.prestige)*.005*Q;
+  if(pol.education===0) pd+=.3*Q; if(pol.shogunate===0) pd+=.5*Q;
+  for(const t of gs.lord.traits) if(t.ef.prestigeD) pd+=t.ef.prestigeD*Q;
   gs.prestige=clamp(gs.prestige+pd,0,100);
 
+  // 門閥/実力派
   let mbd=0;
-  if(pol.education===1) mbd-=.5; if(pol.domestic===0) mbd+=.2;
-  for(const t of gs.lord.traits) if(t.ef.monbatsuD) mbd+=t.ef.monbatsuD*10;
+  if(pol.education===1) mbd-=.5*Q; if(pol.domestic===0) mbd+=.2*Q;
+  for(const t of gs.lord.traits) if(t.ef.monbatsuD) mbd+=t.ef.monbatsuD*10*Q;
   gs.monbatsu=clamp(gs.monbatsu+mbd,10,90); gs.jitsuryoku=100-gs.monbatsu;
 
-  if(pol.domestic===0) gs.koku=Math.floor(gs.koku*1.0008);
+  // 新田開発政策で石高微増（月次0.08%→季次0.24%）
+  if(pol.domestic===0) gs.koku=Math.floor(gs.koku*(1+0.0008*Q));
 
-  if(gs.month===12){
-    gs.lord.age++;
-    // 健康悪化曲線: 50/65/75歳で段階的に加速
-    const age=gs.lord.age;
-    const decay = age>=75?1.5 : age>=65?1.0 : age>=50?0.5 : 0;
-    if(decay>0) gs.lord.health=Math.max(0,gs.lord.health-decay);
-    if(gs.heir&&gs.heirAge!==null) gs.heirAge++;
-  }
+  // 藩主の老化・健康は advanceSeason() に移動
   syncMilitary();
 }
 
@@ -1369,22 +1447,22 @@ function syncMilitary() {
 }
 
 function handleSankin() {
-  const tm=gs.year*12+gs.month;
+  const tm=curTurnN();
   if(!gs.sankin.inEdo&&tm>=gs.sankin.nextSankin){
-    gs.sankin.inEdo=true; gs.sankin.edoMonths=0;
-    const cost=gs.dom.edoDist*120+800; // 移動費用を削減
+    gs.sankin.inEdo=true; gs.sankin.edoSeasons=0;
+    const cost=(gs.dom.edoDist*120+800)*3; // 移動費用（季次×3）
     gs.money=Math.max(0,gs.money-cost);
-    addEvent('info','参勤交代 出府',`参勤交代のため江戸へ出府した。移動費用${fmt(cost)}が発生した。半年間の江戸勤番が始まる。`);
+    addEvent('info','参勤交代 出府',`参勤交代のため江戸へ出府した。移動費用${fmt(cost)}が発生した。2季間の江戸勤番が始まる。`);
   }
   if(gs.sankin.inEdo){
-    gs.sankin.edoMonths++;
-    if(gs.sankin.edoMonths>=6){ // 12ヶ月→6ヶ月（半年）に短縮
+    gs.sankin.edoSeasons++;
+    if(gs.sankin.edoSeasons>=2){ // 6ヶ月→2季（半年）
       gs.sankin.inEdo=false;
-      const cost=gs.dom.edoDist*120+800;
+      const cost=(gs.dom.edoDist*120+800)*3;
       gs.money=Math.max(0,gs.money-cost);
-      gs.sankin.nextSankin=(gs.year*12+gs.month)+18; // 次回まで18ヶ月（1.5年後）
+      gs.sankin.nextSankin=curTurnN()+6; // 次回まで6季（1.5年後）
       gs.bakufu=clamp(gs.bakufu+3,0,100);
-      addEvent('good','参勤交代 帰国','半年の江戸勤番を終え国許に帰還した。参勤交代の義務を果たし幕府の信頼が増した。');
+      addEvent('good','参勤交代 帰国','2季の江戸勤番を終え国許に帰還した。参勤交代の義務を果たし幕府の信頼が増した。');
     }
   }
 }
@@ -1412,7 +1490,8 @@ function triggerRandom() {
 function checkHist() {
   for(const ev of HIST_EVENTS){
     const k=`${ev.year}-${ev.month}`;
-    if(!gs.usedHist.has(k)&&gs.year===ev.year&&gs.month===ev.month){
+    // 年一致 + 同じ季（季節）に一致したら発火
+    if(!gs.usedHist.has(k)&&gs.year===ev.year&&getQuarterForMonth(gs.month)===getQuarterForMonth(ev.month)){
       applyEf(ev.ef);
       gs.usedHist.add(k);
       if(ev.choices){ showChoice(`【史実】${ev.title}`,ev.text,ev.choices); }
@@ -1461,11 +1540,10 @@ function resolveChoice(idx) {
   if(c.postFn) c.postFn();
   // チェーンの次ステップをスケジュール
   if(c.chainNext && c.chainNext.stepId) {
-    const curTurn=gs.year*12+gs.month;
     gs.activeChains.push({
       chainId: c.chainNext.chainId,
       stepId:  c.chainNext.stepId,
-      triggerTurn: curTurn + (c.chainNext.delay||1),
+      triggerTurn: curTurnN() + (c.chainNext.delay||1),
     });
   }
   const evType = (c.cls==='c-danger')?'bad':(c.cls==='c-good'?'good':'info');
@@ -1474,7 +1552,7 @@ function resolveChoice(idx) {
   document.getElementById('choice-modal').style.display='none';
   document.getElementById('btn-turn').disabled=false;
   checkGameOver();
-  if(!gs.gameOver){ gs.month++; if(gs.month>12){gs.month=1;gs.year++;} gs.turns++; }
+  if(!gs.gameOver){ advanceSeason(); }
   renderAll();
 }
 
@@ -1567,14 +1645,14 @@ function applyRetainerLoyalty(){
   if(!gs.retainers||!gs.retainers.length) return;
   const pol=gs.policies;
   for(const r of gs.retainers){
-    // 派閥と政策の整合性チェック
+    // 派閥と政策の整合性チェック（季次×3換算）
     const conflict=isFactionConflict(r.faction, pol);
-    r.loyalty=clamp(r.loyalty+(conflict?-2:+1),0,100);
+    r.loyalty=clamp(r.loyalty+(conflict?-6:+3),0,100);
     // 高能力で役職なしの家臣は不満が溜まりやすい
     const cap=r.seiji+r.sanjutsu+r.buryaku+r.gaiko;
-    if(!r.post&&cap>=28) r.loyalty=clamp(r.loyalty-1,0,100);
-    // 年齢は12月にインクリメント
-    if(gs.month===12){
+    if(!r.post&&cap>=28) r.loyalty=clamp(r.loyalty-3,0,100);
+    // 年齢は冬（month=10 = 年末の最後の季）にインクリメント
+    if(gs.month===10){
       r.age++;
       // 高齢退任（65歳以上で年20%の確率）
       if(r.age>=65&&Math.random()<0.20){
@@ -1610,7 +1688,7 @@ function wrapChainChoices(chainId, choices) {
 
 // 毎ターン: 発火時刻になったチェーンステップを処理
 function processChains() {
-  const curTurn=gs.year*12+gs.month;
+  const curTurn=curTurnN();
   let fired=false;
   gs.activeChains=gs.activeChains.filter(ac=>{
     if(ac.triggerTurn>curTurn) return true;     // まだ未到来
@@ -1633,7 +1711,7 @@ function processChains() {
 
 // ランダムイベントの代わりにチェーン始動を試みる
 function tryTriggerChain() {
-  const curTurn=gs.year*12+gs.month;
+  const curTurn=curTurnN();
   const available=EVENT_CHAINS.filter(c=>
     (!c.cond||c.cond(gs)) &&
     (!gs.chainCooldowns[c.id]||curTurn-gs.chainCooldowns[c.id]>=(c.cooldown||120)) &&
@@ -1662,6 +1740,93 @@ function tryTriggerChain() {
 
 // ========================== 家臣UI ==========================
 const FACTION_LABEL={ budan:'武断派', bunchi:'文治派', kenyaku:'倹約派', sekkyoku:'積極派' };
+
+// ========================== 季節 ==========================
+const SEASON_INFO = {
+  spring:{ label:'春', icon:'🌸', cls:'season-spring', incMod:1.00, expMod:1.00, desc:'農耕の始まり。建設に好適。' },
+  summer:{ label:'夏', icon:'☀️', cls:'season-summer', incMod:0.95, expMod:1.05, desc:'暑気と厄災の季節。洪水・疫病に注意。' },
+  autumn:{ label:'秋', icon:'🍁', cls:'season-autumn', incMod:1.20, expMod:1.00, desc:'収穫と実りの季節。年貢が最も入る。' },
+  winter:{ label:'冬', icon:'❄️', cls:'season-winter', incMod:0.85, expMod:1.10, desc:'内省と備えの季節。藩政評定の好機。' },
+};
+function getSeason(){ const m=gs?gs.month:1; return m<=3?'spring':m<=6?'summer':m<=9?'autumn':'winter'; }
+function getSeasonQ(){ return {1:1,4:2,7:3,10:4}[gs?gs.month:1]||1; }
+function getQuarterForMonth(m){ return m<=3?1:m<=6?2:m<=9?3:4; }
+
+// 既存施策への季節修飾
+function getSeasonalMod(id){
+  const s=getSeason();
+  const map={
+    spring:{ ronin:{costDelta:-500,note:'春：人材が動く季節 費用-500'},
+             recruit:{effectMult:0.5,note:'春：農繁期のため効果半減'} },
+    summer:{ relief:{effectMult:1.3,note:'夏：食料不足期のため効果+30%'},
+             banquet:{disabled:true,note:'夏：炎天下で宴は困難'} },
+    autumn:{ gift:{bonusEf:{bakufuD:5},note:'秋：年末贈答シーズン 幕府心象+5ボーナス'},
+             relief:{costDelta:-500,note:'秋：食料豊富のため費用-500'} },
+    winter:{ recruit:{disabled:true,note:'冬：兵の徴集は困難'},
+             medical:{effectMult:1.5,note:'冬：静養に適した季節 効果+50%'} },
+  };
+  return (map[s]&&map[s][id])||{};
+}
+
+// ========================== 季節専用コマンド ==========================
+const SEASONAL_ACTIONS = {
+  spring:[
+    { id:'tanue', icon:'🌾', title:'田植え支援', ap:2, cost:'2,000両', cd:0,
+      desc:'農業に投資し今年の秋の収入を20%増やす。',
+      cond:g=>g.money>=2000&&!(g.seasonBonus&&g.seasonBonus.tanue),
+      fn:()=>{ gs.money-=2000; if(!gs.seasonBonus) gs.seasonBonus={}; gs.seasonBonus.tanue=true; addEvent('good','田植え支援','農業に投資した。今年の秋の収穫が増える見込みだ。'); } },
+    { id:'bugei', icon:'⚔️', title:'春の武芸大会', ap:2, cost:'1,500両', cd:0,
+      desc:'藩士を集め武芸大会を開催。軍事力+8・全家臣忠誠+8。',
+      cond:g=>g.money>=1500,
+      fn:()=>{ gs.money-=1500; gs.military=clamp(gs.military+8,0,100); gs.retainers&&gs.retainers.forEach(r=>r.loyalty=clamp(r.loyalty+8,0,100)); addEvent('good','春の武芸大会','藩士たちの鍛錬と士気が高まった。'); } },
+    { id:'kenci', icon:'📐', title:'春の検地', ap:3, cost:'3,000両', cd:8,
+      desc:'土地を再測量し石高増収を図る。成否は運次第。',
+      cond:g=>g.money>=3000,
+      fn:()=>{ gs.money-=3000; const g=rng(0,3); if(g>0){gs.koku=Math.floor(gs.koku*(1+g*.01)); addEvent('good','検地成功',`石高が${g}%増加した。`);} else{gs.minshin=clamp(gs.minshin-5,0,100); addEvent('bad','検地不調','農民の反発を招き民心が低下した。');} } },
+  ],
+  summer:[
+    { id:'ekibi', icon:'🏥', title:'疫病対策', ap:1, cost:'2,000両', cd:0,
+      desc:'今夏の疫病・健康低下リスクを防ぐ。',
+      cond:g=>g.money>=2000&&!(g.seasonShield&&g.seasonShield.ekibi),
+      fn:()=>{ gs.money-=2000; if(!gs.seasonShield) gs.seasonShield={}; gs.seasonShield.ekibi=true; addEvent('good','疫病対策','今夏の疫病リスクに備えた。藩主と領民の健康が守られる。'); } },
+    { id:'teibo', icon:'🌊', title:'堤防補強', ap:2, cost:'3,000両', cd:0,
+      desc:'今夏の洪水・旱魃イベントを防ぐ。',
+      cond:g=>g.money>=3000&&!(g.seasonShield&&g.seasonShield.teibo),
+      fn:()=>{ gs.money-=3000; if(!gs.seasonShield) gs.seasonShield={}; gs.seasonShield.teibo=true; addEvent('good','堤防補強','今夏の水害に備え堤防を強化した。災害リスクが大幅に低下した。'); } },
+    { id:'kaisen', icon:'⚓', title:'廻船交易', ap:1, cost:'1,000両', cd:0,
+      desc:'特産品を廻船で売りさばく。特産品数×600両の臨時収入。（沿岸藩のみ）',
+      cond:g=>g.money>=1000&&['satsuma','kaga','tosa','sendai','hikone'].includes(g.dom.id),
+      fn:()=>{ const gain=gs.dom.products.length*600; gs.money=gs.money-1000+gain; addEvent('good','廻船交易',`特産品を廻船で売りさばき${fmt(gain)}の臨時収入を得た。`); } },
+  ],
+  autumn:[
+    { id:'zocei', icon:'💹', title:'年貢増徴', ap:1, cost:'なし', cd:2,
+      desc:'苛烈な取り立てで収入+20%。ただし民心-12。（2季CD）',
+      cond:()=>true,
+      fn:()=>{ const extra=Math.floor(calcIncome()*.20); gs.money+=extra; gs.minshin=clamp(gs.minshin-12,0,100); addEvent('bad','年貢増徴',`強引な年貢取り立てで${fmt(extra)}の臨時収入を得た。領民の怨嗟が高まっている。`); } },
+    { id:'shukaku', icon:'🎋', title:'収穫祭', ap:1, cost:'1,500両', cd:0,
+      desc:'豊作を祝う祭を開催。民心+12・全家臣忠誠+5。',
+      cond:g=>g.money>=1500,
+      fn:()=>{ gs.money-=1500; gs.minshin=clamp(gs.minshin+12,0,100); gs.retainers&&gs.retainers.forEach(r=>r.loyalty=clamp(r.loyalty+5,0,100)); addEvent('good','収穫祭','秋の収穫祭を盛大に催した。領民の喜びが満ちている。'); } },
+    { id:'bussan', icon:'🛒', title:'物産廻送', ap:1, cost:'1,000両', cd:0,
+      desc:'特産品を一括売却。特産品数×600両の臨時収入。',
+      cond:g=>g.money>=1000,
+      fn:()=>{ const gain=gs.dom.products.length*600; gs.money=gs.money-1000+gain; addEvent('good','物産廻送',`特産品の一括廻送で${fmt(gain)}の臨時収入を得た。`); } },
+  ],
+  winter:[
+    { id:'bichiku', icon:'🍚', title:'越冬備蓄配給', ap:1, cost:'2,000両', cd:0,
+      desc:'備蓄を配給し飢饉・民心低下を防ぐ。',
+      cond:g=>g.money>=2000&&!(g.seasonShield&&g.seasonShield.bichiku),
+      fn:()=>{ gs.money-=2000; if(!gs.seasonShield) gs.seasonShield={}; gs.seasonShield.bichiku=true; addEvent('good','越冬備蓄配給','備蓄を配給し厳冬に備えた。飢饉・民心低下リスクが低下した。'); } },
+    { id:'hyojo', icon:'📋', title:'藩政評定', ap:1, cost:'なし', cd:0,
+      desc:'家中評定を開き今季の政策変更をAP・費用なしにする。',
+      cond:g=>!g.freePolicy,
+      fn:()=>{ gs.freePolicy=true; addEvent('info','藩政評定','家中で藩政評定が行われた。今季は政策変更が無料・AP消費なしとなる。'); } },
+    { id:'seshu', icon:'🥋', title:'雪中武者修行', ap:2, cost:'1,500両', cd:0,
+      desc:'極寒の修行で軍事力+12。藩主健康-1。',
+      cond:g=>g.money>=1500,
+      fn:()=>{ gs.money-=1500; gs.military=clamp(gs.military+12,0,100); gs.lord.health=Math.max(0,gs.lord.health-1); addEvent('info','雪中武者修行','極寒の修行で藩士の士気と練度が大きく上がった。'); } },
+  ],
+};
 
 function renderRetainers(){
   const el=document.getElementById('retainer-panel');
@@ -1763,8 +1928,8 @@ function assignRetainer(retId, newPost){
 // ========================== 城下町建設 ==========================
 function processConstruction() {
   if(!gs.construction) return;
-  gs.construction.monthsLeft--;
-  if(gs.construction.monthsLeft>0) return;
+  gs.construction.seasonsLeft--;
+  if(gs.construction.seasonsLeft>0) return;
   const fac=FACILITIES.find(f=>f.id===gs.construction.facilityId);
   if(!fac) { gs.construction=null; return; }
   // 恒久効果を適用
@@ -1773,7 +1938,7 @@ function processConstruction() {
       gs.koku=Math.floor(gs.koku*(1+v));
     } else if(k==='rankakuBonus'){
       gs.rankaku=clamp(gs.rankaku+v,0,100);
-      gs.facEffects.rankakuSpeedBonus=(gs.facEffects.rankakuSpeedBonus||0)+0.15; // 月次上昇速度+0.15
+      gs.facEffects.rankakuSpeedBonus=(gs.facEffects.rankakuSpeedBonus||0)+0.15;
     } else {
       gs.facEffects[k]=(gs.facEffects[k]||0)+v;
     }
@@ -1802,7 +1967,7 @@ function openFacilityModal(){
       </div>
       <div class="fac-desc">${f.desc}</div>
       <div class="fac-foot">
-        <span class="fac-cost">${fmt(f.cost)} ／ ${f.months}ヶ月</span>
+        <span class="fac-cost">${fmt(f.cost)} ／ ${f.seasons||Math.ceil((f.months||4)/3)}季</span>
         ${!built&&!building?`<button class="btn-build" onclick="startFacility('${f.id}')" ${canBuild?'':'disabled'}>${afford?(busy?'他が建設中':'着工する'):'資金不足'}</button>`:''}
       </div>
     </div>`;
@@ -1819,9 +1984,10 @@ function startFacility(id){
   const fac=FACILITIES.find(f=>f.id===id);
   if(!fac||gs.builtFacilities.includes(id)||gs.construction) return;
   if(gs.money<fac.cost){ notif('資金が不足しています'); return; }
+  const seasons=fac.seasons||Math.ceil((fac.months||4)/3);
   gs.money-=fac.cost;
-  gs.construction={ facilityId:id, monthsLeft:fac.months, totalMonths:fac.months };
-  addEvent('info',`${fac.icon}${fac.name}着工`,`建設費${fmt(fac.cost)}を投じて着工した。${fac.months}ヶ月後に完成予定。`);
+  gs.construction={ facilityId:id, seasonsLeft:seasons, totalSeasons:seasons };
+  addEvent('info',`${fac.icon}${fac.name}着工`,`建設費${fmt(fac.cost)}を投じて着工した。${seasons}季後に完成予定。`);
   closeFacilityModal();
   renderAll();
   notif(`${fac.name}の建設を開始しました`);
@@ -1833,11 +1999,11 @@ function renderFacilities(){
   let html='';
   if(gs.construction){
     const fac=FACILITIES.find(f=>f.id===gs.construction.facilityId);
-    const pct=Math.round((1-gs.construction.monthsLeft/gs.construction.totalMonths)*100);
+    const pct=Math.round((1-gs.construction.seasonsLeft/gs.construction.totalSeasons)*100);
     html=`<div class="fac-progress">
       <div style="font-size:.75rem;margin-bottom:.3rem">${fac.icon} <strong>${fac.name}</strong> 建設中</div>
       <div class="fac-prog-bar"><div class="fac-prog-fill" style="width:${pct}%"></div></div>
-      <div style="font-size:.68rem;color:var(--ink-light);margin-top:.2rem">残り${gs.construction.monthsLeft}ヶ月 (${pct}%完成)</div>
+      <div style="font-size:.68rem;color:var(--ink-light);margin-top:.2rem">残り${gs.construction.seasonsLeft}季 (${pct}%完成)</div>
     </div>`;
   }
   if(gs.builtFacilities.length>0){
@@ -1851,6 +2017,48 @@ function renderFacilities(){
     html='<div style="font-size:.73rem;color:var(--ink-light);margin-bottom:.4rem">まだ施設は建設されていません。</div>';
   }
   el.innerHTML=html;
+}
+
+// ========================== 季節コマンド描画 ==========================
+function renderSeasonalActions(){
+  const season=getSeason();
+  const si=SEASON_INFO[season];
+  const actions=SEASONAL_ACTIONS[season]||[];
+
+  // ヘッダーブロック
+  const hEl=document.getElementById('seasonal-header-block');
+  if(hEl){
+    const incSign=si.incMod>=1?'+':'';
+    const expSign=si.expMod>=1?'+':'';
+    const incStr=`${incSign}${Math.round((si.incMod-1)*100)}%`;
+    const expStr=`${expSign}${Math.round((si.expMod-1)*100)}%`;
+    hEl.innerHTML=`<div class="seasonal-header ${si.cls}" style="border:1px solid currentColor">
+      <strong>${si.icon} ${si.label}（第${getSeasonQ()}季）</strong>　${si.desc}<br>
+      <span style="font-size:.72rem">季収入修正: <strong>${incStr}</strong> ／ 季支出修正: <strong>${expStr}</strong></span>
+    </div>`;
+  }
+
+  // コマンドグリッド
+  const gEl=document.getElementById('seasonal-action-grid');
+  if(!gEl) return;
+  gEl.innerHTML=actions.map(a=>{
+    const cdKey='sea_'+a.id;
+    const cd=a.cd&&isOnCooldown(cdKey);
+    const notEnoughAP=gs.ap!==undefined&&a.ap&&gs.ap<a.ap;
+    const condOk=!a.cond||a.cond(gs);
+    const ok=!cd&&condOk&&!notEnoughAP;
+    const reasons=[];
+    if(cd) reasons.push(cooldownMsg(cdKey));
+    if(notEnoughAP) reasons.push(`AP不足（必要${a.ap}、残${gs.ap}）`);
+    if(!condOk&&!cd) reasons.push('条件を満たしていません');
+    const apBadge=a.ap?`<span style="font-size:.62rem;background:rgba(201,162,39,.18);color:var(--wood);padding:1px 5px;border-radius:3px;margin-left:.3rem">AP×${a.ap}</span>`:'';
+    return `<div class="action-card${ok?'':' disabled'}" onclick="${ok?`execSeasonalAction('${a.id}')`:''}" style="border-top:3px solid currentColor;color:${ok?'inherit':'inherit'}">
+      <div class="atitle">${a.icon} ${a.title}${apBadge}</div>
+      <div class="adesc">${a.desc}</div>
+      <div class="acost">費用: ${a.cost}${a.cd?` ／ CD:${a.cd}季`:''}</div>
+      ${reasons.length?`<div style="font-size:.65rem;color:${cd?'var(--wood)':'var(--red)'};margin-top:.2rem">${cd?'⏳':'⚠'} ${reasons.join(' ')}</div>`:''}
+    </div>`;
+  }).join('');
 }
 
 // トレンド矢印
@@ -2022,14 +2230,17 @@ function phase(y){
 // ========================== RENDER ==========================
 function renderAll(){
   if(!gs) return;
-  renderHeader(); renderLeft(); renderRight(); renderEvents(); renderFinance(); renderPolicies(); renderActions(); renderFacilities(); renderRetainers();
+  renderHeader(); renderLeft(); renderRight(); renderEvents(); renderFinance(); renderPolicies(); renderActions(); renderSeasonalActions(); renderFacilities(); renderRetainers();
   const blocked=!gs||gs.gameOver||!!pendingChoice;
   document.getElementById('btn-turn').disabled=blocked;
   document.getElementById('btn-skip').disabled=blocked;
 }
 
 function renderHeader(){
-  document.getElementById('h-date').textContent=`${gs.year}年（${era(gs.year)}）${gs.month}月 ${mName(gs.month)}`;
+  const si=SEASON_INFO[getSeason()];
+  const q=getSeasonQ();
+  const seasonBadge=`<span class="season-badge ${si.cls}" style="font-size:.75rem;padding:.1rem .5rem">${si.icon} ${si.label}</span>`;
+  document.getElementById('h-date').innerHTML=`${gs.year}年（${era(gs.year)}）第${q}季 ${seasonBadge}`;
   document.getElementById('h-koku').textContent=fmtK(gs.koku);
   document.getElementById('h-money').textContent=fmt(gs.money);
   document.getElementById('h-minshin').textContent=Math.floor(gs.minshin);
@@ -2037,8 +2248,20 @@ function renderHeader(){
   document.getElementById('h-bakufu').textContent=Math.floor(gs.bakufu);
   const p=phase(gs.year);
   const ph=document.getElementById('h-phase'); ph.textContent=p.label; ph.className=`phase-badge ${p.cls}`;
-  // Year progress bar (1603 → 1867 = 264 years)
-  const pct=((gs.year-1603)*12+gs.month-1)/((1867-1603)*12+12)*100;
+  // AP ピップ表示（ヘッダー右端）
+  if(gs.ap!==undefined){
+    const existing=document.getElementById('h-ap-block');
+    const pips=Array.from({length:gs.maxAP},(_,i)=>`<div class="ap-pip${i<gs.ap?'':' empty'}"></div>`).join('');
+    const html=`<div style="display:flex;flex-direction:column;align-items:center;font-size:.68rem"><div style="color:var(--paper-dark)">行動力</div><div class="ap-bar" style="margin-top:.15rem">${pips}</div></div>`;
+    if(existing){ existing.innerHTML=html; }
+    else {
+      const btn=document.getElementById('btn-turn');
+      const div=document.createElement('div'); div.id='h-ap-block'; div.innerHTML=html;
+      btn.parentNode.insertBefore(div,btn);
+    }
+  }
+  // Year progress bar (1603 → 1868 = 265 years)
+  const pct=((gs.year-1603)*4+getSeasonQ()-1)/((1868-1603)*4)*100;
   document.getElementById('year-bar').style.width=`${Math.min(100,pct)}%`;
 }
 
@@ -2128,16 +2351,18 @@ function renderRight(){
   if(gs.saikai>gs.koku*2) warns.push('⚠️ 大坂借財が過大。財政危機。');
   if(!gs.heir) warns.push('⚠️ 世継ぎが未定。断絶の危険。');
   if(gs.lord.health<5) warns.push('⚠️ 藩主の健康が危険水域。');
-  if(calcIncome()<calcExpense()) warns.push('⚠️ 毎月赤字。借財増加中。');
+  if(calcIncome()<calcExpense()) warns.push('⚠️ 毎季赤字。借財増加中。');
   document.getElementById('warnings').innerHTML=warns.length===0?'<span style="color:var(--green)">特になし</span>':warns.map(w=>`<div style="color:var(--red);margin-bottom:.2rem">${w}</div>`).join('');
 }
 
 function renderEvents(){
   const cur=gs.year*100+gs.month;
+  const sNames={1:'春',2:'夏',3:'秋',4:'冬'};
   document.getElementById('event-log').innerHTML=gs.events.map(e=>{
     const isThisTurn=(e.year*100+e.month===cur);
+    const sName=sNames[getQuarterForMonth(e.month)]||'';
     return `<div class="event-entry ev-${e.type}${isThisTurn?' ev-new':''}">
-      <div class="edate">${isThisTurn?'<span class="badge-now">今月</span>':''} ${e.year}年${e.month}月（${era(e.year)}）</div>
+      <div class="edate">${isThisTurn?'<span class="badge-now">今季</span>':''} ${e.year}年 ${sName}（${era(e.year)}）</div>
       <div class="etitle">${e.title}</div>
       <div class="etext">${e.text}</div>
     </div>`;
@@ -2146,11 +2371,16 @@ function renderEvents(){
 
 function renderFinance(){
   const inc=calcIncome(),exp=calcExpense();
-  const base=Math.floor(gs.koku*.33/12),prod=gs.dom.products.length*200,ret=Math.floor(gs.koku*.25/12);
-  const edo=Math.floor(gs.dom.baseKoku*.018/12),sankin=gs.sankin.inEdo?Math.floor(gs.dom.edoDist*100+600):0,interest=Math.floor(gs.saikai*.005);
-  const facUpkeep=(gs.builtFacilities||[]).length*250;
+  const si=SEASON_INFO[getSeason()];
+  const base=Math.floor(gs.koku*.33/4*si.incMod);
+  const prod=gs.dom.products.length*600;
+  const ret=Math.floor(gs.koku*.25/4*si.expMod);
+  const edo=Math.floor(gs.dom.baseKoku*.018/4);
+  const sankin=gs.sankin.inEdo?Math.floor((gs.dom.edoDist*100+600)*3):0;
+  const interest=Math.floor(gs.saikai*.015);
+  const facUpkeep=(gs.builtFacilities||[]).length*750;
   document.getElementById('finance-detail').innerHTML=`
-    <p style="font-size:.75rem;color:var(--ink-light);margin-bottom:.7rem">月次収支の詳細（統治${gs.turns}ヶ月目）</p>
+    <p style="font-size:.75rem;color:var(--ink-light);margin-bottom:.7rem">季次収支の詳細（統治${gs.turns}季目）${si.icon} ${si.label}（収入${si.incMod>=1?'+':''}${Math.round((si.incMod-1)*100)}%・支出${si.expMod>=1?'+':''}${Math.round((si.expMod-1)*100)}%）</p>
     <h4 style="margin-bottom:.4rem;font-size:.8rem">◆ 収入</h4>
     <div class="frow"><div class="flabel">年貢収入</div><div class="fpos">+${fmt(base)}</div></div>
     <div class="frow"><div class="flabel">特産品収入</div><div class="fpos">+${fmt(prod)}</div></div>
@@ -2160,11 +2390,11 @@ function renderFinance(){
     <div class="frow"><div class="flabel">家臣給与</div><div class="fneg">-${fmt(ret)}</div></div>
     <div class="frow"><div class="flabel">江戸屋敷</div><div class="fneg">-${fmt(edo)}</div></div>
     <div class="frow"><div class="flabel">参勤費用</div><div class="fneg">-${fmt(sankin)}</div></div>
-    <div class="frow"><div class="flabel">大坂利息(0.5%/月)</div><div class="fneg">-${fmt(interest)}</div></div>
+    <div class="frow"><div class="flabel">大坂利息(1.5%/季)</div><div class="fneg">-${fmt(interest)}</div></div>
     ${facUpkeep>0?`<div class="frow"><div class="flabel">施設維持費(×${(gs.builtFacilities||[]).length}棟)</div><div class="fneg">-${fmt(facUpkeep)}</div></div>`:''}
     <div class="frow ftotal"><div>合計支出</div><div class="fneg">-${fmt(exp)}</div></div>
     <div style="margin-top:.8rem;padding-top:.5rem;border-top:2px solid var(--border)">
-      <div class="frow ftotal"><div>月間収支</div><div class="${inc>=exp?'fpos':'fneg'}">${inc>=exp?'+':''}${fmt(inc-exp)}</div></div>
+      <div class="frow ftotal"><div>季間収支</div><div class="${inc>=exp?'fpos':'fneg'}">${inc>=exp?'+':''}${fmt(inc-exp)}</div></div>
       <div class="frow"><div class="flabel">現在の藩金</div><div>${fmt(gs.money)}</div></div>
       <div class="frow" style="border:none"><div class="flabel">大坂借財</div><div class="fneg">${fmt(gs.saikai)}</div></div>
     </div>`;
@@ -2195,17 +2425,31 @@ function renderPolicies(){
 }
 
 function renderActions(){
+  // AP ヘッダー
+  const apEl=document.getElementById('ap-header-block');
+  if(apEl&&gs.ap!==undefined){
+    const pips=Array.from({length:gs.maxAP},(_,i)=>`<div class="ap-pip${i<gs.ap?'':' empty'}"></div>`).join('');
+    apEl.innerHTML=`<div class="ap-header">
+      <div><span class="ap-label">行動力（AP）</span> <span class="ap-val">${gs.ap}／${gs.maxAP}</span></div>
+      <div class="ap-bar">${pips}</div>
+    </div>`;
+  }
   document.getElementById('action-grid').innerHTML=SPECIAL_ACTIONS.map(a=>{
     const cd=isOnCooldown(a.id);
-    const ok=!cd&&a.cond(gs);
-    const reason=cd?cooldownMsg(a.id):(ok?'':getActionReason(a));
-    const cdPct=cd&&a.cd?Math.round((1-(gs.actionCooldowns[a.id]-curTurnN())/a.cd)*100):0;
+    const notEnoughAP=gs.ap!==undefined&&a.ap&&gs.ap<a.ap;
+    const ok=!cd&&a.cond(gs)&&!notEnoughAP;
+    let reason='';
+    if(cd) reason=cooldownMsg(a.id);
+    else if(notEnoughAP) reason=`AP不足（必要${a.ap}、残${gs.ap}）`;
+    else if(!a.cond(gs)) reason=getActionReason(a);
+    const sMod=getSeasonalMod(a.id);
+    const sNote=sMod.note||(sMod.disabled?`${SEASON_INFO[getSeason()].label}季は使用不可`:'');
+    const apBadge=a.ap?`<span style="font-size:.62rem;background:rgba(201,162,39,.18);color:var(--wood);padding:1px 5px;border-radius:3px;margin-left:.3rem">AP×${a.ap}</span>`:'';
     return `<div class="action-card${ok?'':' disabled'}" onclick="${ok?`execAction('${a.id}')`:''}" >
-      <div class="atitle">${a.icon} ${a.title}</div>
+      <div class="atitle">${a.icon} ${a.title}${apBadge}</div>
       <div class="adesc">${a.desc}</div>
-      <div class="acost">費用: ${a.cost}${a.cd?` ／ CD:${a.cd}ヶ月`:''}</div>
-      ${cd?`<div style="font-size:.65rem;color:var(--wood);margin-top:.2rem">⏳ ${reason}</div>`
-          :!ok?`<div style="font-size:.65rem;color:var(--red);margin-top:.2rem">⚠ ${reason}</div>`:''}
+      <div class="acost">費用: ${a.cost}${a.cd?` ／ CD:${a.cd}季`:''}${sNote?` ／ <span style="color:var(--indigo-light)">${sNote}</span>`:''}</div>
+      ${(cd||!ok)?`<div style="font-size:.65rem;color:${cd?'var(--wood)':'var(--red)'};margin-top:.2rem">${cd?'⏳':'⚠'} ${reason}</div>`:''}
     </div>`;
   }).join('');
 }
@@ -2230,19 +2474,29 @@ function getActionReason(a){
 // ========================== ACTIONS ==========================
 function setPolicy(key,idx){
   if(gs.policies[key]===idx) return;
+  // 政策変更は AP 1 消費（藩政評定後は無料）
+  if(!gs.freePolicy){
+    if(gs.ap!==undefined&&gs.ap<1){ notif('行動力が不足しています（政策変更にはAP×1が必要）'); return; }
+    if(gs.ap!==undefined) gs.ap--;
+  }
   const pol=POLICIES.find(p=>p.key===key);
   gs.policies[key]=idx;
   const opt=pol.options[idx];
-  addEvent('info',`政策変更: ${pol.label}`,`「${opt.label}」を採用した。${opt.short}`);
+  const apNote=gs.freePolicy?'（評定により無料）':'（AP×1消費）';
+  addEvent('info',`政策変更: ${pol.label}`,`「${opt.label}」を採用した。${opt.short} ${apNote}`);
   if(key==='education'&&idx===1&&gs.monbatsu>70){gs.monbatsu=clamp(gs.monbatsu+5,10,90);gs.jitsuryoku=100-gs.monbatsu;addEvent('bad','門閥派の反発','蘭学保護の採用に門閥派が強く反発している。');}
   renderAll(); notif(`${pol.label}を「${opt.label}」に変更`);
 }
 
-function curTurnN(){ return gs.year*12+gs.month; }
+// 季次ターン番号: year*4 + 季(1〜4)
+function curTurnN(){
+  const qMap={1:1,4:2,7:3,10:4};
+  return gs.year*4+(qMap[gs.month]||1);
+}
 function isOnCooldown(id){ return gs.actionCooldowns&&gs.actionCooldowns[id]>curTurnN(); }
 function cooldownMsg(id){
   const rem=(gs.actionCooldowns[id]||0)-curTurnN();
-  return rem>0?`クールダウン中（あと${rem}ヶ月）`:'';
+  return rem>0?`CD中（あと${rem}季）`:'';
 }
 
 function execAction(id){
@@ -2251,12 +2505,32 @@ function execAction(id){
   if(!a){ notif('不明な施策です'); return; }
   if(isOnCooldown(a.id)){ notif(cooldownMsg(a.id)); return; }
   if(!a.cond(gs)){ notif('この施策は現在実行できません'); return; }
+  if(gs.ap!==undefined&&a.ap&&gs.ap<a.ap){ notif(`行動力が不足しています（必要AP×${a.ap}、残${gs.ap}）`); return; }
   a.fn();
+  if(a.ap&&gs.ap!==undefined) gs.ap=Math.max(0,gs.ap-a.ap);
   if(a.cd){
     if(!gs.actionCooldowns) gs.actionCooldowns={};
     gs.actionCooldowns[a.id]=curTurnN()+a.cd;
   }
-  renderAll(); notif(`施策「${a.title}」を実行しました`);
+  renderAll(); notif(`施策「${a.title}」を実行しました（AP残${gs.ap}）`);
+}
+
+function execSeasonalAction(id){
+  if(!gs||gs.gameOver) return;
+  const season=getSeason();
+  const a=(SEASONAL_ACTIONS[season]||[]).find(x=>x.id===id);
+  if(!a){ notif('この季節のコマンドではありません'); return; }
+  const cdKey='sea_'+a.id;
+  if(a.cd&&isOnCooldown(cdKey)){ notif(cooldownMsg(cdKey)); return; }
+  if(a.cond&&!a.cond(gs)){ notif('条件を満たしていません'); return; }
+  if(gs.ap!==undefined&&a.ap&&gs.ap<a.ap){ notif(`行動力が不足しています（必要AP×${a.ap}、残${gs.ap}）`); return; }
+  a.fn();
+  if(a.ap&&gs.ap!==undefined) gs.ap=Math.max(0,gs.ap-a.ap);
+  if(a.cd){
+    if(!gs.actionCooldowns) gs.actionCooldowns={};
+    gs.actionCooldowns[cdKey]=curTurnN()+a.cd;
+  }
+  renderAll(); notif(`「${a.title}」を実行しました（AP残${gs.ap}）`);
 }
 
 function switchTab(tabId,btn){
@@ -2299,8 +2573,11 @@ function selDom(id){
 function startGame(){
   if(!selDomain) return;
   gs=newState(selDomain);
+  // 行動力を初期化
+  gs.maxAP=calcMaxAP();
+  gs.ap=gs.maxAP;
   const traitStr = gs.lord.traits.map(t=>t.label).join('・');
-  addEvent('history','ゲーム開始',`${gs.year}年（${era(gs.year)}）、${gs.dom.name}の藩政が始まった。${gs.dom.desc}。藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。性格：${traitStr}。`);
+  addEvent('history','ゲーム開始',`${gs.year}年（${era(gs.year)}）春、${gs.dom.name}の藩政が始まった。${gs.dom.desc}。藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。性格：${traitStr}。行動力：${gs.maxAP}`);
   document.getElementById('title-screen').style.display='none';
   document.getElementById('game-screen').style.display='flex';
   renderAll();
@@ -2310,8 +2587,8 @@ document.getElementById('btn-start').addEventListener('click',startGame);
 document.getElementById('btn-turn').addEventListener('click',()=>{if(gs&&!gs.gameOver&&!pendingChoice) processTurn();});
 document.getElementById('btn-skip').addEventListener('click',()=>{
   if(!gs||gs.gameOver||pendingChoice) return;
-  // 12ターン（1年）まとめて進める。choiceが出たら止まる
-  for(let i=0;i<12;i++){
+  // 4ターン（1年=4季）まとめて進める。choiceが出たら止まる
+  for(let i=0;i<4;i++){
     if(pendingChoice||gs.gameOver) break;
     processTurn();
   }
@@ -2319,7 +2596,7 @@ document.getElementById('btn-skip').addEventListener('click',()=>{
 document.addEventListener('keydown',e=>{
   if(e.code==='Space'&&gs&&!gs.gameOver&&!pendingChoice){e.preventDefault();processTurn();}
   if(e.code==='Enter'&&gs&&!gs.gameOver&&!pendingChoice){e.preventDefault();
-    for(let i=0;i<12;i++){if(pendingChoice||gs.gameOver) break; processTurn();}
+    for(let i=0;i<4;i++){if(pendingChoice||gs.gameOver) break; processTurn();}
   }
 });
 
