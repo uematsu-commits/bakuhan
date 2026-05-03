@@ -205,6 +205,24 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
 .goal-progress-box .gp-bar{height:100%;background:var(--gold);border-radius:3px;transition:width .4s}
 /* 特産品効果ラベル */
 .prod-ef{font-size:.63rem;color:var(--indigo-light);display:block;margin-top:.1rem}
+/* 時代選択（タイトル画面） */
+#era-step{display:none;margin-top:.8rem;max-width:860px;width:100%}
+#era-step h3{font-size:1rem;color:var(--gold);margin-bottom:.6rem;letter-spacing:.08rem}
+.era-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:.4rem}
+.era-btn{background:rgba(244,234,213,.08);border:1px solid rgba(201,162,39,.3);border-radius:5px;padding:.55rem .65rem;cursor:pointer;transition:all .15s;font-family:inherit;text-align:left;color:var(--paper);width:100%}
+.era-btn:hover{background:rgba(201,162,39,.2);border-color:#e8c040}
+.era-btn.sel{background:rgba(201,162,39,.28);border-color:#e8c040;border-width:2px}
+.era-btn .ei{font-size:.95rem}
+.era-btn .el{font-size:.82rem;font-weight:bold;color:var(--gold)}
+.era-btn .ey{font-size:.63rem;color:#a09080;margin-left:.3rem}
+.era-btn .ed{font-size:.62rem;color:#b0a090;margin-top:.15rem;line-height:1.3}
+/* 時代ミニゴール（右パネル） */
+.era-goal-box{background:rgba(26,58,108,.12);border:1px solid rgba(42,82,152,.5);border-radius:5px;padding:.5rem .6rem;margin-bottom:.3rem}
+.era-goal-box .eg-era{font-size:.7rem;color:var(--indigo-light);font-weight:bold;margin-bottom:.2rem}
+.era-goal-box .eg-desc{font-size:.68rem;color:var(--ink-light);margin-bottom:.3rem;line-height:1.4}
+.era-goal-box .eg-bar-wrap{height:6px;background:#d0c0a0;border-radius:3px;overflow:hidden;margin-bottom:.2rem}
+.era-goal-box .eg-bar{height:100%;background:var(--indigo-light);border-radius:3px;transition:width .4s}
+.era-goal-box .eg-hint{font-size:.67rem;color:var(--ink-light)}
 
 /* RETAINER */
 .retainer-modal-box{background:var(--paper);border:3px solid var(--gold);border-radius:8px;padding:1.3rem;max-width:420px;width:94%;max-height:80vh;overflow-y:auto}
@@ -314,9 +332,13 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
   <div class="domain-grid" id="domain-grid"></div>
   <div id="goal-step">
     <h3>◆ 志を選ぶ（任意）</h3>
-    <p style="font-size:.72rem;color:#a09080;margin-bottom:.7rem">目標を定めると、右パネルに進捗が表示されます。選ばなくても開幕できます。</p>
+    <p style="font-size:.72rem;color:#a09080;margin-bottom:.7rem">目標を定めると右パネルに進捗が表示されます。選ばなくても開幕できます。</p>
     <div class="goal-grid" id="goal-grid"></div>
-    <button class="btn-primary" style="margin-top:.7rem;background:transparent;border:1px solid #a09080;color:#a09080;font-size:.75rem;padding:.4rem 1.2rem" id="btn-nogoal" onclick="selGoal(null)">志なしで開幕</button>
+  </div>
+  <div id="era-step">
+    <h3>◆ 開始する時代を選ぶ</h3>
+    <p style="font-size:.72rem;color:#a09080;margin-bottom:.6rem">確立期（1603年）から通しでプレイ、または任意の時代からショートプレイができます。</p>
+    <div class="era-grid" id="era-grid"></div>
   </div>
   <button class="btn-primary" id="btn-start" disabled>開 幕</button>
   <p style="margin-top:.8rem;font-size:.72rem;color:#706050">藩を選択してください ／ Spaceキーでターン進行</p>
@@ -464,6 +486,7 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
         <div id="facility-status"></div>
         <button class="btn-fac" onclick="openFacilityModal()">建設を計画する 🏗️</button>
       </div>
+      <div class="psec" id="era-mingoal-section" style="display:none"></div>
       <div class="psec" id="goal-progress-section" style="display:none"></div>
       <div class="psec">
         <h4>◆ 警告</h4>
@@ -609,6 +632,145 @@ const GOALS = [
     prog:(g)=>Math.min(100,Math.round((Math.min(g.tobaku,85)/85)*100)),
     cond:(g)=>g.tobaku>=85&&g.year>=1853 },
 ];
+
+// ========================== 時代フェーズ ==========================
+const ERA_PHASES = [
+  { id:'keicho',  label:'確立期', icon:'🏯', cls:'phase-s',
+    start:1603, end:1651,
+    desc:'徳川の天下が始まる。外様は一つの失策で改易される。幕府の天下普請も重くのしかかる。',
+    flavor:'生き延びることが最大の勝利',
+    shortStart:null,
+    mechanics:{
+      kaiyakuThreshold:40, tozakaThreshold:50, // 厳格な改易ライン
+      fusinChance:.40,                          // 毎季40%で天下普請が飛んでくる
+      genrokuCost:0, expMod:.05, prodMod:1.0,
+    },
+    miniGoal:{
+      desc:'幕府心象45以上・黒字で1651年を迎える',
+      hint:g=>`幕府心象 ${Math.floor(g.bakufu)}/45　収支 ${calcIncome()>=calcExpense()?'✓ 黒字':'✗ 赤字'}`,
+      prog:g=>Math.min(100,Math.round((Math.min(g.bakufu,45)/45)*60+(calcIncome()>=calcExpense()?40:0))),
+      cond:g=>g.bakufu>=45&&calcIncome()>=calcExpense(),
+      reward:{ moneyD:5000, label:'確立期突破：藩の蓄えが増した。+5,000両' },
+    }
+  },
+  { id:'antei',   label:'安定期', icon:'🌾', cls:'phase-a',
+    start:1652, end:1687,
+    desc:'幕藩体制が固まり、産業育成に力を注げる時代。各藩の個性が開花し始める。',
+    flavor:'基盤を作り次代への礎を',
+    shortStart:{ bakufu:55, minshin:65, money:4000, saikai:30000, rankaku:0, prestige:50, military:30 },
+    mechanics:{
+      kaiyakuThreshold:15, tozakaThreshold:20,
+      fusinChance:.15, genrokuCost:0, expMod:0, prodMod:1.0,
+      buildDiscount:.10, // 施設建設10%割引
+    },
+    miniGoal:{
+      desc:'石高+5%以上・施設1棟以上で1687年を迎える',
+      hint:g=>`石高 +${Math.round((g.koku/g.dom.baseKoku-1)*100)}%/5%　施設 ${g.builtFacilities.length}棟/1棟以上`,
+      prog:g=>Math.min(100,Math.round(Math.min((g.koku/g.dom.baseKoku-1)/.05,1)*60+Math.min(g.builtFacilities.length,1)*40)),
+      cond:g=>g.koku>=g.dom.baseKoku*1.05&&g.builtFacilities.length>=1,
+      reward:{ moneyD:3000, label:'安定期突破：財政準備金が充実した。+3,000両' },
+    }
+  },
+  { id:'genroku', label:'元禄期', icon:'🎭', cls:'phase-k',
+    start:1688, end:1715,
+    desc:'元禄バブル。特産品収入が増えるが、奢侈の波が押し寄せる。文化に投資するか財政を守るか。',
+    flavor:'栄華を楽しみながら破綻を避けよ',
+    shortStart:{ bakufu:55, minshin:68, money:6000, saikai:25000, rankaku:0, prestige:52, military:32 },
+    mechanics:{
+      kaiyakuThreshold:15, tozakaThreshold:20,
+      fusinChance:.10, genrokuCost:500, expMod:.05, prodMod:1.30, // 特産品収入×1.3・毎季500両の奢侈費
+    },
+    miniGoal:{
+      desc:'威信65以上・借財が石高の100%以下で1715年を迎える',
+      hint:g=>`威信 ${Math.floor(g.prestige)}/65　借財 ${Math.round(g.saikai/g.koku*100)}%/100%以下`,
+      prog:g=>Math.min(100,Math.round((Math.min(g.prestige,65)/65)*60+Math.max(0,Math.min(1,1-(g.saikai/g.koku-1)*.5))*40)),
+      cond:g=>g.prestige>=65&&g.saikai<=g.koku,
+      reward:{ prestigeD:10, label:'元禄期突破：藩主の名声が高まった。威信+10' },
+    }
+  },
+  { id:'kaikaku', label:'改革期', icon:'⚖️', cls:'phase-a',
+    start:1716, end:1786,
+    desc:'享保改革・田沼時代・寛政改革。倹約令の重圧と商業振興の機会が交錯する。',
+    flavor:'改革で藩の体質を変えよ',
+    shortStart:{ bakufu:50, minshin:60, money:4000, saikai:40000, rankaku:5, prestige:50, military:35 },
+    mechanics:{
+      kaiyakuThreshold:15, tozakaThreshold:20,
+      fusinChance:.10, genrokuCost:0, expMod:.10, prodMod:1.0, // 倹約令で常時+10%
+      tanuma:true, // 1767-86 田沼期：重商主義時に収入追加ボーナス
+    },
+    miniGoal:{
+      desc:'借財を石高の75%以下 または 民心70以上で1786年を迎える',
+      hint:g=>`借財 ${Math.round(g.saikai/g.koku*100)}%/75%以下 または 民心 ${Math.floor(g.minshin)}/70以上`,
+      prog:g=>Math.min(100,Math.max(Math.round((1-Math.min(g.saikai/(g.koku*.75),2)*.5)*100),Math.round(g.minshin/70*100))),
+      cond:g=>g.saikai<=g.koku*.75||g.minshin>=70,
+      reward:{ rankakuD:15, label:'改革期突破：蘭学振興の機運が高まった。蘭学+15' },
+    }
+  },
+  { id:'bunsei',  label:'文政期', icon:'📜', cls:'phase-k',
+    start:1787, end:1852,
+    desc:'江戸文化の爛熟と外圧の高まり。黒船来航前夜、変化への備えが問われる時代。',
+    flavor:'迫る嵐に備えよ',
+    shortStart:{ bakufu:50, minshin:62, money:3500, saikai:45000, rankaku:10, prestige:52, military:35 },
+    mechanics:{
+      kaiyakuThreshold:15, tozakaThreshold:20,
+      fusinChance:.05, genrokuCost:0, expMod:0, prodMod:1.0,
+      foreignPressure:1.3, // 外国船イベント確率増
+    },
+    miniGoal:{
+      desc:'蘭学30以上・民心60以上で1852年を迎える',
+      hint:g=>`蘭学 ${Math.floor(g.rankaku)}/30　民心 ${Math.floor(g.minshin)}/60`,
+      prog:g=>Math.min(100,Math.round((Math.min(g.rankaku,30)/30)*50+(Math.min(g.minshin,60)/60)*50)),
+      cond:g=>g.rankaku>=30&&g.minshin>=60,
+      reward:{ apBonusNext:1, label:'文政期突破：時代を読んだ藩主の眼力が光る。幕末はAP+1/季' },
+    }
+  },
+  { id:'bakumatsu',label:'幕末期', icon:'🌅', cls:'phase-b',
+    start:1853, end:1868,
+    desc:'黒船来航から大政奉還まで。倒幕か佐幕か、歴史の分岐点に立て。',
+    flavor:'歴史の主役となれ',
+    shortStart:{ bakufu:48, minshin:58, money:3000, saikai:55000, rankaku:15, prestige:50, military:40 },
+    mechanics:{
+      kaiyakuThreshold:15, tozakaThreshold:20,
+      fusinChance:.05, genrokuCost:0, expMod:0, prodMod:1.0,
+      tobakuActive:true, modernBonus:true, // 洋式調練コスト-20%
+    },
+    miniGoal:{
+      desc:'1868年まで藩の命脈をつなぎ歴史の転換点を見届ける',
+      hint:g=>`${g.year}年 → 1868年　倒幕値 ${Math.floor(g.tobaku)}（${g.tobaku>65?'倒幕寄り':g.tobaku<35?'佐幕寄り':'中立'}）`,
+      prog:g=>Math.min(100,Math.round(((g.year-1853)/Math.max(1,1868-1853))*100)),
+      cond:g=>g.year>=1868,
+      reward:{ label:'大政奉還を見届けた。新時代の夜明けが来た！' },
+    }
+  },
+];
+
+function getCurEra(){ return ERA_PHASES.find(e=>gs.year>=e.start&&gs.year<=e.end)||ERA_PHASES[ERA_PHASES.length-1]; }
+function getKaiyakuThreshold(){
+  const e=getCurEra(); if(!e) return 15;
+  return gs.dom.type==='tozama' ? e.mechanics.tozakaThreshold : e.mechanics.kaiyakuThreshold;
+}
+function checkEraTransition(){
+  const era=getCurEra(); if(!era) return;
+  gs.eraTransitioned=gs.eraTransitioned||{};
+  if(gs.eraTransitioned[era.id]) return; // すでに処理済み
+  gs.eraTransitioned[era.id]=true;
+  const idx=ERA_PHASES.findIndex(e=>e.id===era.id);
+  if(idx>0){
+    const prev=ERA_PHASES[idx-1];
+    const ok=prev.miniGoal.cond(gs);
+    if(ok){
+      const r=prev.miniGoal.reward;
+      if(r.moneyD)   gs.money+=r.moneyD;
+      if(r.prestigeD) gs.prestige=clamp(gs.prestige+r.prestigeD,0,100);
+      if(r.rankakuD)  gs.rankaku=clamp(gs.rankaku+r.rankakuD,0,100);
+      if(r.apBonusNext) gs.eraBonusAP=(gs.eraBonusAP||0)+r.apBonusNext;
+      addEvent('good',`🏆 ${prev.icon}${prev.label} ミニゴール達成！`,`${r.label||''}`);
+    } else {
+      addEvent('info',`📅 ${prev.icon}${prev.label} 終了`,`「${prev.miniGoal.desc}」は達成できなかった。次の時代へ進む。`);
+    }
+  }
+  addEvent('history',`🕰️ 時代が変わる — ${era.icon}${era.label}（${era.start}年〜${era.end}年）`,`${era.desc}　— ${era.flavor}`);
+}
 
 const POLICIES = [
   { key:'finance', label:'財政方針', options:[
@@ -1370,6 +1532,10 @@ function newState(domId) {
     // --- 志（ゴール）---
     goal: null,          // 選択されたゴールID
     goalAchieved: false, // 達成済みフラグ
+    // --- 時代フェーズ ---
+    eraTransitioned: {}, // { eraId: true } 移行済みフラグ
+    eraBonusAP: 0,       // 文政期クリアで+1
+    heirCrisisShown: false,
     events:[], usedHist:new Set(), turns:0, gameOver:false,
   };
 }
@@ -1396,7 +1562,8 @@ function calcMaxAP() {
   for(const t of gs.lord.traits) if(t.ef && t.ef.apBonus) ap += t.ef.apBonus;
   const karoR = getPostRetainer('karo');
   if(karoR && karoR.seiji >= 8) ap++; // 家老が優秀なら+1
-  return Math.min(ap, 7); // 上限7
+  ap += (gs.eraBonusAP||0);           // 文政期クリアボーナス
+  return Math.min(ap, 8); // 上限8（文政クリアボーナス込み）
 }
 
 // ========================== LOGIC ==========================
@@ -1414,12 +1581,18 @@ function calcIncome() {
   // 特産品効果: 砂糖は収入+20%（年貢にも乗る）
   const prods=gs.dom.products;
   if(prods.includes('砂糖')) incMod+=.20;
+  // 田沼期（1767-1786）重商主義ボーナス
+  const curEra=getCurEra();
+  if(curEra&&curEra.mechanics.tanuma&&gs.year>=1767&&gs.year<=1786&&gs.policies.finance===1) incMod+=.20;
   const base=gs.koku*0.33/4*incMod; // 季次（月次÷12×3＝÷4）
   // 特産品収入: 基本600/品、鰹節は廻船交易×1.5で900
+  // 元禄期は特産品収入×1.3
+  const eraProdMod=curEra?curEra.mechanics.prodMod:1.0;
   let prod=0;
   for(const p of prods){
     prod += (p==='鰹節') ? 900 : 600;
   }
+  prod=Math.floor(prod*eraProdMod);
   // 田植え支援の秋ボーナス
   if(gs.seasonBonus&&gs.seasonBonus.tanue&&getSeason()==='autumn') prod=Math.floor(prod*1.20);
   const lordMod=1+(gs.lord.politics-10)*.01;
@@ -1444,6 +1617,9 @@ function calcExpense() {
   if(gunjiR) expMod-=gunjiR.buryaku*0.002; // 武略10で軍事費-2%効率
   // 特産品効果: 麻は軍事支出-5%
   if(gs.dom.products.includes('麻')) expMod-=.05;
+  // 時代固有の支出修飾子（確立期+5%・改革期+10%・元禄期+5%）
+  const era4exp=getCurEra();
+  if(era4exp) expMod+=era4exp.mechanics.expMod;
   const base=gs.koku*0.25/4*expMod; // 季次（÷4）
   const edo=gs.dom.baseKoku*0.018/4;
   const sankinCost=gs.sankin.inEdo?(gs.dom.edoDist*100+600)*3:0; // 季次（月次×3）
@@ -1485,8 +1661,14 @@ function advanceSeason() {
 function processTurn() {
   if(!gs||gs.gameOver||pendingChoice) return;
   gs.turnEvents=[];  // 今ターンのイベントをリセット
+  // 時代移行チェック（新年度に時代境界をまたいだ直後）
+  checkEraTransition();
   const inc=calcIncome(), exp=calcExpense();
-  gs.money+=inc-exp;
+  // 元禄奢侈費（毎季固定）
+  const eraM=getCurEra()&&getCurEra().mechanics;
+  const genCost=eraM?eraM.genrokuCost:0;
+  gs.money+=inc-exp-genCost;
+  if(genCost>0) addEvent('info','元禄奢侈費',`元禄の世の豪奢な風潮により${fmt(genCost)}を支出した。`);
   if(gs.money<0){ const b=Math.abs(gs.money)+300; gs.saikai+=b; gs.money=0; addEvent('info','借財増加',`資金不足により大坂商人から${fmt(b)}を借り入れた。`); }
   applyStats();
   handleSankin();
@@ -1495,9 +1677,14 @@ function processTurn() {
   if(!pendingChoice) updateFactions();
   processChains();
   if(!pendingChoice) {
-    // チェーン始動 25% / 通常ランダム 22%（両方走らないよう分岐）
-    if(Math.random()<.25){ if(!tryTriggerChain()) { if(Math.random()<.22) triggerRandom(); } }
-    else if(Math.random()<.22) triggerRandom();
+    // 時代ごとの天下普請（確立期が最多）
+    const fChance=eraM?eraM.fusinChance:0;
+    if(Math.random()<fChance) triggerFusin();
+    else {
+      // チェーン始動 25% / 通常ランダム 22%（両方走らないよう分岐）
+      if(Math.random()<.25){ if(!tryTriggerChain()) { if(Math.random()<.22) triggerRandom(); } }
+      else if(Math.random()<.22) triggerRandom();
+    }
   }
   checkHist();
   checkKaiyaku();
@@ -1717,8 +1904,27 @@ function resolveChoice(idx) {
 }
 
 // 改易通告 — 幕府心象が危機的な時に一度だけ回避選択を出す
+// 時代ごとの天下普請（fusinChanceで呼ばれる）
+function triggerFusin(){
+  const min=getCurEra()&&getCurEra().id==='keicho'?2000:1500;
+  const max=getCurEra()&&getCurEra().id==='keicho'?5000:3000;
+  const cost=Math.floor(Math.random()*(max-min)+min);
+  showChoice('🏯 幕府普請命令',
+    `幕府より公共工事（お手伝い普請）への参加を命じられた。石高${fmtK(gs.koku)}の藩として${fmt(cost)}の費用負担が求められる。`,
+    [
+      { label:'快く応じ誠意を見せる', cls:'c-good', effect:'幕府への忠誠を示した。費用はかかったが心象が上がった。', ef:{ moneyD:-cost, bakufuD:5 } },
+      { label:'費用の減免を交渉する', cls:'', effect:'費用の削減に成功した。幕府の心象はやや下がった。', ef:{ moneyD:-Math.floor(cost*.55), bakufuD:-2 } },
+      { label:'【剛直】一切の不平なく奉仕する', traitReq:'gochoku', cls:'c-good',
+        effect:'剛直な藩主の筋を通した奉仕が老中の目に留まった。', ef:{ moneyD:-Math.floor(cost*1.1), bakufuD:12, prestigeD:5 } },
+      { label:'【倹約】費用を工夫し最小限に抑える', traitReq:'kenyaku', cls:'',
+        effect:'倹約の才覚で出費を大幅に削減した。', ef:{ moneyD:-Math.floor(cost*.4), bakufuD:1 } },
+    ]
+  );
+}
+
 function checkKaiyaku() {
-  if(gs.kaiyakuWarned||gs.bakufu>15) return;
+  const threshold=getKaiyakuThreshold();
+  if(gs.kaiyakuWarned||gs.bakufu>threshold) return;
   gs.kaiyakuWarned=true;
   showChoice('改易通告！',
     '幕府から改易（領地没収）の通告が届いた。このままでは御家は終わりを迎える。いかに対処するか？',
@@ -2410,8 +2616,10 @@ function renderHeader(){
   document.getElementById('h-minshin').textContent=Math.floor(gs.minshin);
   document.getElementById('h-saikai').textContent=fmt(gs.saikai);
   document.getElementById('h-bakufu').textContent=Math.floor(gs.bakufu);
-  const p=phase(gs.year);
-  const ph=document.getElementById('h-phase'); ph.textContent=p.label; ph.className=`phase-badge ${p.cls}`;
+  const curEraH=getCurEra();
+  const ph=document.getElementById('h-phase');
+  ph.textContent=curEraH?`${curEraH.icon}${curEraH.label}`:phase(gs.year).label;
+  ph.className=`phase-badge ${curEraH?curEraH.cls:phase(gs.year).cls}`;
   // AP ピップ表示（ヘッダー右端）
   if(gs.ap!==undefined){
     const existing=document.getElementById('h-ap-block');
@@ -2512,6 +2720,27 @@ function renderRight(){
   const bf=gs.bakufu;
   document.getElementById('bakufu-status').innerHTML=bf>=70?'<span style="color:var(--green)">良好 — 関係は安定している</span>':bf>=40?'<span style="color:var(--wood)">普通 — 問題なし</span>':bf>=20?'<span style="color:var(--red)">悪化 — 幕府の警戒が増大</span>':'<span style="color:var(--red)"><strong>危機的 — 改易の危機！</strong></span>';
   if(gs.sankin.inEdo) document.getElementById('bakufu-status').innerHTML+='<br><span style="color:var(--indigo)">参勤交代中（江戸在府）</span>';
+  // 時代ミニゴール進捗
+  const eraSec=document.getElementById('era-mingoal-section');
+  if(eraSec){
+    const ce=getCurEra();
+    if(ce){
+      const mg=ce.miniGoal;
+      const prog=mg.prog(gs);
+      const achieved=gs.eraTransitioned&&gs.eraTransitioned[ce.id]&&ERA_PHASES.indexOf(ce)<ERA_PHASES.length-1;
+      // 達成済み（次時代に移行済み）なら「クリア済み」表示
+      const isFinal=ce.id==='bakumatsu';
+      eraSec.style.display='';
+      eraSec.innerHTML=`<h4>◆ ${ce.icon}${ce.label}（〜${ce.end}年）</h4>
+        <div class="era-goal-box">
+          <div class="eg-desc">${mg.desc}</div>
+          <div class="eg-bar-wrap"><div class="eg-bar" style="width:${prog}%"></div></div>
+          <div class="eg-hint">${mg.hint(gs)}</div>
+          <div style="font-size:.65rem;margin-top:.2rem;color:var(--ink-light)">残り約${Math.max(0,ce.end-gs.year)}年</div>
+        </div>`;
+    }
+  }
+
   // 志（ゴール）進捗
   const goalSec=document.getElementById('goal-progress-section');
   if(goalSec){
@@ -2748,7 +2977,8 @@ function notif(text){
 
 // ========================== TITLE ==========================
 let selDomain=null;
-let selGoalId=null; // null=志なし
+let selGoalId=null;  // null=志なし
+let selEraId='keicho'; // デフォルト：確立期
 
 function initTitle(){
   document.getElementById('domain-grid').innerHTML=DOMAINS.map(d=>`
@@ -2763,12 +2993,20 @@ function initTitle(){
         <div style="margin-top:.3rem;color:#c0b090;font-size:.78rem">${d.desc}</div>
       </div>
     </div>`).join('');
-  // ゴールグリッドを初期化
+  // ゴールグリッド
   document.getElementById('goal-grid').innerHTML=GOALS.map(g=>`
     <button class="goal-btn" id="gb-${g.id}" onclick="selGoal('${g.id}')">
       <div class="gi">${g.icon}</div>
       <div class="gl">${g.label}</div>
       <div class="gd">${g.desc}</div>
+    </button>`).join('');
+  // 時代グリッド（確立期は「全時代通し」ラベル）
+  document.getElementById('era-grid').innerHTML=ERA_PHASES.map(e=>`
+    <button class="era-btn${e.id==='keicho'?' sel':''}" id="eb-${e.id}" onclick="selEra('${e.id}')">
+      <span class="ei">${e.icon}</span>
+      <span class="el">${e.label}</span>
+      <span class="ey">${e.start}〜${e.end}年</span>
+      <div class="ed">${e.id==='keicho'?'全時代通し':e.flavor}</div>
     </button>`).join('');
 }
 
@@ -2776,35 +3014,51 @@ function selDom(id){
   selDomain=id;
   document.querySelectorAll('.domain-card').forEach(c=>c.classList.remove('sel'));
   document.getElementById(`dc-${id}`).classList.add('sel');
-  // ゴール選択ステップを表示
   document.getElementById('goal-step').style.display='block';
-  // ゴールは未選択状態にリセット
+  document.getElementById('era-step').style.display='block';
+  document.getElementById('btn-start').disabled=false;
+  // ゴール・時代をリセット
   selGoalId=null;
   document.querySelectorAll('.goal-btn').forEach(b=>b.classList.remove('sel'));
-  document.getElementById('btn-start').disabled=false;
 }
 
 function selGoal(id){
-  selGoalId=id;
+  selGoalId=(selGoalId===id)?null:id; // 再クリックで解除
   document.querySelectorAll('.goal-btn').forEach(b=>b.classList.remove('sel'));
-  if(id){
-    const el=document.getElementById(`gb-${id}`);
-    if(el) el.classList.add('sel');
-  }
-  // 志なしで開幕 or ゴール選択完了 → すぐ開幕
-  startGame();
+  if(selGoalId) document.getElementById(`gb-${selGoalId}`)?.classList.add('sel');
+}
+
+function selEra(id){
+  selEraId=id;
+  document.querySelectorAll('.era-btn').forEach(b=>b.classList.remove('sel'));
+  document.getElementById(`eb-${id}`)?.classList.add('sel');
 }
 
 function startGame(){
   if(!selDomain) return;
   gs=newState(selDomain);
   gs.goal=selGoalId||null;
+  // ショートプレイ：選択時代の初期ステータスを適用
+  const startEra=ERA_PHASES.find(e=>e.id===selEraId)||ERA_PHASES[0];
+  if(startEra.id!==ERA_PHASES[0].id && startEra.shortStart){
+    const ss=startEra.shortStart;
+    gs.year=startEra.start; gs.month=1;
+    gs.bakufu=ss.bakufu; gs.minshin=ss.minshin; gs.money=ss.money;
+    gs.saikai=ss.saikai; gs.rankaku=ss.rankaku; gs.prestige=ss.prestige;
+    gs.military=ss.military;
+    gs.prevStats={minshin:ss.minshin, bakufu:ss.bakufu, money:ss.money};
+    // 前時代を全て「移行済み」にして移行イベントが再発しないようにする
+    for(const e of ERA_PHASES){
+      if(e.start>=startEra.start) break;
+      gs.eraTransitioned[e.id]=true;
+    }
+  }
   // 行動力を初期化
-  gs.maxAP=calcMaxAP();
-  gs.ap=gs.maxAP;
+  gs.maxAP=calcMaxAP(); gs.ap=gs.maxAP;
   const traitStr=gs.lord.traits.map(t=>t.label).join('・');
   const goalStr=gs.goal?(()=>{const g=GOALS.find(x=>x.id===gs.goal);return g?` 志：「${g.icon}${g.label}」。`:'';})():'';
-  addEvent('history','ゲーム開始',`${gs.year}年（${era(gs.year)}）春、${gs.dom.name}の藩政が始まった。${gs.dom.desc}。藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。性格：${traitStr}。行動力：${gs.maxAP}。${goalStr}`);
+  const eraStr=startEra.id!==ERA_PHASES[0].id?`【${startEra.icon}${startEra.label}よりショートプレイ】`:'';
+  addEvent('history','ゲーム開始',`${gs.year}年（${era(gs.year)}）春、${gs.dom.name}の藩政が始まった。${eraStr}藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。性格：${traitStr}。行動力：${gs.maxAP}。${goalStr}`);
   document.getElementById('title-screen').style.display='none';
   document.getElementById('game-screen').style.display='flex';
   renderAll();
