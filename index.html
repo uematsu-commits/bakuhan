@@ -205,6 +205,13 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
 .goal-progress-box .gp-bar{height:100%;background:var(--gold);border-radius:3px;transition:width .4s}
 /* 特産品効果ラベル */
 .prod-ef{font-size:.63rem;color:var(--indigo-light);display:block;margin-top:.1rem}
+/* 藩主の器量バッジ */
+.cal-badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:.62rem;font-weight:bold;vertical-align:middle;margin-left:.2rem}
+.cal-meikun{background:var(--gold);color:var(--ink)}
+.cal-eishu{background:var(--green);color:#fff}
+.cal-bonyo{background:var(--paper-dark);color:var(--ink-light);border:1px solid var(--border)}
+.cal-bonkun{background:#b07a3a;color:#fff}
+.cal-ankun{background:var(--red);color:#fff}
 /* 時代選択（タイトル画面） */
 #era-step{display:none;margin-top:.8rem;max-width:860px;width:100%}
 #era-step h3{font-size:1rem;color:var(--gold);margin-bottom:.6rem;letter-spacing:.08rem}
@@ -549,6 +556,15 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
       <div class="help-row">➕ 家老が優秀（政治8以上）だとAP+1</div>
       <div class="help-row">➕ 文政期ミニゴール達成でAP+1/季（永続）</div>
       <div class="help-row">🔒 冬の「藩政評定」で政策変更がその季のみ無料になる</div>
+    </div>
+
+    <div class="help-sec">
+      <h3>藩主と世代交代</h3>
+      <div style="font-size:.78rem;margin-bottom:.4rem;color:var(--ink-light)">藩主の5能力はゲームに直結する——<strong>政治</strong>＝民心回復・収入・AP、<strong>学識</strong>＝蘭学成長、<strong>文化</strong>＝威信成長、<strong>統率</strong>＝軍事成長、<strong>健康</strong>＝寿命。優れた藩主は藩を栄えさせ、暗愚な藩主は衰退を招く。</div>
+      <div class="help-row">🌟 4つの統治能力の合計で器量を判定：<span class="cal-badge cal-meikun">🌟名君</span> <span class="cal-badge cal-eishu">✨英主</span> <span class="cal-badge cal-bonyo">・凡庸</span> <span class="cal-badge cal-bonkun">△凡君</span> <span class="cal-badge cal-ankun">▼暗君</span></div>
+      <div class="help-row">🧬 世継ぎは親の血筋を受け継ぐが当たり外れがある。名君の子は英邁になりやすいが、暗君が生まれることも。世代交代は藩の浮沈を左右する大きな節目。</div>
+      <div class="help-row">👶 18歳未満での相続は「幼君」となり民心・幕府心象が低下、家中が動揺する。</div>
+      <div class="help-row">⚰️ 藩主が高齢・病弱で世継ぎ未定だと<strong>無嗣断絶</strong>の危機。早めに養子縁組を。</div>
     </div>
 
     <div class="help-sec">
@@ -1783,6 +1799,37 @@ function makeLord(dom) {
   };
 }
 
+const GIVEN_NAMES=['義高','信長','治信','晴信','元就','氏真','隆景','元清','頼宣','光圀','斉彬','容保','宗秀','利家','政宗','綱良','吉貴','重豪','斉興','宗城','豊信','慶永','直弼','直亮'];
+
+// 世継ぎ（次代藩主）を生成。親の資質を一部受け継ぎつつ、当たり外れの「器量の揺らぎ」がある
+function makeHeirLord(parent, dom){
+  const surnames={satsuma:'島津',kaga:'前田',sendai:'伊達',mito:'徳川',hikone:'井伊',tosa:'山内'};
+  // 器量の揺らぎ: 暗愚(0.55倍)〜凡庸〜英邁(1.35倍)。名君の子が暗君のことも、その逆も。
+  const roll=Math.random();
+  const factor = roll<0.18?0.55 : roll<0.45?0.80 : roll<0.78?1.0 : roll<0.93?1.20 : 1.40;
+  const inherit=(pv)=>clamp(Math.round(pv*0.5 + (10*factor)*0.5 + rng(-3,3)),2,20); // 親の半分＋世代固有の器量
+  const traits=[...LORD_TRAITS].sort(()=>Math.random()-.5).slice(0,rng(2,4));
+  return {
+    surname:parent.surname, given:GIVEN_NAMES[rng(0,GIVEN_NAMES.length-1)],
+    age:1, // 就任時にgs.heirAgeで上書き
+    politics:inherit(parent.politics), gakushiki:inherit(parent.gakushiki),
+    culture:inherit(parent.culture), command:inherit(parent.command), health:rng(10,18),
+    traits, generation:(parent.generation||1)+1,
+    emoji:['🧑','👨','🧔'][rng(0,2)],
+    _caliberFactor:factor,
+  };
+}
+
+// 藩主の器量（4つの統治能力の合計）からランク判定
+function lordCaliber(lord){
+  const sum=(lord.politics||0)+(lord.gakushiki||0)+(lord.culture||0)+(lord.command||0); // 最大80前後
+  if(sum>=58) return { label:'名君', cls:'cal-meikun', icon:'🌟', sum };
+  if(sum>=46) return { label:'英主', cls:'cal-eishu', icon:'✨', sum };
+  if(sum>=34) return { label:'凡庸', cls:'cal-bonyo', icon:'・', sum };
+  if(sum>=24) return { label:'凡君', cls:'cal-bonkun', icon:'△', sum };
+  return { label:'暗君', cls:'cal-ankun', icon:'▼', sum };
+}
+
 function rng(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 
 function calcMaxAP() {
@@ -2747,31 +2794,47 @@ function showScenarioResult(sc, winOk, starCount, stars){
 
 // ========================== SUCCESSION ==========================
 function performSuccession() {
-  const old=`${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）`;
-  const gen=(gs.lord.generation||1)+1;
-  const newLord=makeLord(gs.dom);
+  const oldLord=gs.lord;
+  const old=`${oldLord.surname} ${oldLord.given}（${oldLord.age}歳）`;
+  const oldCal=lordCaliber(oldLord);
+  const gen=(oldLord.generation||1)+1;
+  // ★世継ぎは親の資質を受け継ぐ（名君の血筋は強いが、当たり外れがある）
+  const newLord=makeHeirLord(oldLord, gs.dom);
   newLord.age=Math.max(gs.heirAge||18,1);
   newLord.generation=gen;
   const isYoung=newLord.age<18;
+  const newCal=lordCaliber(newLord);
 
   // 世代交代コスト（葬儀・就任費）
   gs.money=Math.max(0,gs.money-2000);
   gs.prestige=clamp(gs.prestige-5,0,100);
-
   // 家臣団の loyalty リセット（-10）
   if(gs.retainers){ gs.retainers.forEach(r=>{ r.loyalty=clamp(r.loyalty-10,20,100); }); }
 
   gs.lord=newLord;
   gs.heirAge=null; gs.heir=false;
 
+  // 先代の評価（名君が没すると喪失感が大きい）
+  const eulogy = oldCal.sum>=58?'稀代の名君と惜しまれ' : oldCal.sum>=46?'良き主君として' : oldCal.sum<24?'凡愚の主と陰口され' : '';
+  let head=`${old}が薨去した。${eulogy?eulogy+'、':''}第${gen}代 ${newLord.surname} ${newLord.given}（${newLord.age}歳）が家督を継いだ。`;
+
+  // 新藩主の器量に応じたドラマ
   if(isYoung){
-    // 幼君ペナルティ
     gs.minshin=clamp(gs.minshin-10,0,100);
-    gs.bakufu=clamp(gs.bakufu-10,0,100);
+    gs.bakufu=clamp(gs.bakufu-8,0,100);
     if(gs.factionTension) gs.factionTension.budan=clamp(gs.factionTension.budan+15,0,100);
-    addEvent('critical','幼君就任',`第${gen}代藩主 ${gs.lord.surname} ${gs.lord.given}はわずか${gs.lord.age}歳での就任。家中に動揺が走り幕府の監視も強まった。`);
+    addEvent('critical','幼君就任',`${head}わずか${newLord.age}歳の幼君に家中は動揺し、幕府の監視も強まった。器量は未だ知れぬ。（${newCal.icon}${newCal.label}の素質）`);
+  } else if(newCal.sum>=58){
+    gs.minshin=clamp(gs.minshin+6,0,100);
+    gs.prestige=clamp(gs.prestige+6,0,100);
+    addEvent('good','名君の誕生',`${head}聡明にして英邁、家中は新たな主君に大いに沸いた。${newLord.surname}家中興の祖となるか。（${newCal.icon}${newCal.label}）`);
+  } else if(newCal.sum<24){
+    gs.minshin=clamp(gs.minshin-6,0,100);
+    gs.bakufu=clamp(gs.bakufu-4,0,100);
+    if(gs.factionTension) gs.factionTension.budan=clamp(gs.factionTension.budan+10,0,100);
+    addEvent('bad','暗君の擁立',`${head}凡庸にして惰弱、家中に失望が広がった。御家の前途は多難である。（${newCal.icon}${newCal.label}）`);
   } else {
-    addEvent('critical','藩主交代',`${old}が薨去した。第${gen}代藩主 ${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が藩政を引き継ぐ。`);
+    addEvent('critical','藩主交代',`${head}（${newCal.icon}${newCal.label}）`);
   }
 }
 
@@ -2909,7 +2972,8 @@ function renderHeader(){
 function renderLeft(){
   const L=gs.lord;
   document.getElementById('lord-portrait').textContent=L.emoji;
-  document.getElementById('lord-name').textContent=`${L.surname} ${L.given}`;
+  const cal=lordCaliber(L);
+  document.getElementById('lord-name').innerHTML=`${L.surname} ${L.given} <span class="cal-badge ${cal.cls}">${cal.icon}${cal.label}</span>`;
   const genLabel=L.generation>1?` （第${L.generation}代）`:'';
   document.getElementById('lord-age').textContent=`${L.age}歳${genLabel} ／ 健康${Math.max(0,Math.floor(L.health))}`;
   document.getElementById('lord-sankin').innerHTML=gs.sankin.inEdo?'<span class="sbadge sb-edo">江戸在府中</span>':'<span class="sbadge sb-kuni">国許在国</span>';
@@ -2929,8 +2993,9 @@ function renderLeft(){
   document.getElementById('fac-mv').textContent=Math.floor(gs.monbatsu);
   document.getElementById('fac-jv').textContent=Math.floor(gs.jitsuryoku);
   const hi=document.getElementById('heir-info');
-  hi.innerHTML=gs.heir&&gs.heirAge!==null?`<span style="color:var(--green)">✓ 世継ぎあり（${Math.floor(gs.heirAge)}歳）</span>`:
-    gs.heir?'<span style="color:var(--green)">✓ 世継ぎあり</span>':'<span style="color:var(--red)">⚠️ 世継ぎ未定</span>';
+  const lordAged=L.age>=58; // 高齢になると継承が現実味を帯びる
+  hi.innerHTML=gs.heir&&gs.heirAge!==null?`<span style="color:var(--green)">✓ 世継ぎあり（${Math.floor(gs.heirAge)}歳）</span><div style="font-size:.66rem;color:var(--ink-light);margin-top:.15rem">器量は家督相続まで未知数${lordAged?'。藩主は高齢——備えは万全か':''}</div>`:
+    gs.heir?'<span style="color:var(--green)">✓ 世継ぎあり</span>':`<span style="color:var(--red)">⚠️ 世継ぎ未定</span>${lordAged?'<div style="font-size:.66rem;color:var(--red);margin-top:.15rem">藩主は高齢。無嗣断絶の危機が迫る</div>':''}`;
 }
 
 function renderRight(){
