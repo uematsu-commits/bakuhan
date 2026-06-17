@@ -351,18 +351,18 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
   <div class="subtitle">〜 藩経営シミュレーション 〜</div>
   <p style="margin-bottom:1.5rem;color:#a09080;font-size:.85rem">1603年（慶長8年）、徳川幕府の礎が築かれる。汝は何藩の主となるや？</p>
   <div class="domain-grid" id="domain-grid"></div>
-  <div id="goal-step">
-    <h3>◆ 志を選ぶ（任意）</h3>
-    <p style="font-size:.72rem;color:#a09080;margin-bottom:.7rem">目標を定めると右パネルに進捗が表示されます。選ばなくても開幕できます。</p>
-    <div class="goal-grid" id="goal-grid"></div>
-  </div>
   <div id="era-step">
-    <h3>◆ 開始する時代を選ぶ</h3>
-    <p style="font-size:.72rem;color:#a09080;margin-bottom:.6rem">確立期（1603年）から通しでプレイ、または任意の時代からショートプレイができます。</p>
+    <h3>◆ 挑むシナリオを選ぶ</h3>
+    <p style="font-size:.72rem;color:#a09080;margin-bottom:.6rem">各シナリオは約12〜15年の独立した時代ミッション。生き延びて★3つの達成を目指せ。通しモードは全265年の長編（上級者向け）。</p>
     <div class="era-grid" id="era-grid"></div>
   </div>
+  <div id="goal-step">
+    <h3>◆ 志を選ぶ（任意）</h3>
+    <p style="font-size:.72rem;color:#a09080;margin-bottom:.7rem">通しモード向けの長期目標。シナリオでは星目標が主軸なので選ばなくても構いません。</p>
+    <div class="goal-grid" id="goal-grid"></div>
+  </div>
   <button class="btn-primary" id="btn-start" disabled>開 幕</button>
-  <p style="margin-top:.8rem;font-size:.72rem;color:#706050">藩を選択してください ／ Spaceキーでターン進行</p>
+  <p style="margin-top:.8rem;font-size:.72rem;color:#706050">藩とシナリオを選択してください ／ Spaceキーでターン進行</p>
 </div>
 
 <!-- GAME SCREEN -->
@@ -892,6 +892,109 @@ function checkEraTransition(){
   }
   addEvent('history',`🕰️ 時代が変わる — ${era.icon}${era.label}（${era.start}年〜${era.end}年）`,`${era.desc}　— ${era.flavor}`);
 }
+
+// ========================== シナリオ（時代ミッション）==========================
+// 各シナリオは独立した短編ミッション。開始年〜終了年を生き延び、星目標で評価される。
+const SCENARIOS = [
+  { id:'sc_keicho', icon:'🏯', title:'関ヶ原の後始末', eraId:'keicho',
+    startYear:1603, endYear:1615, // 48季
+    challenge:'外様取り潰しの嵐と天下普請。とにかく生き延びよ。',
+    blurb:'徳川の天下が定まらんとする慶長の世。些細な落ち度が改易を招き、江戸城普請の課役が藩財政を圧迫する。御家を1615年まで存続させることが何よりの勝利だ。',
+    win:{ label:'1615年まで改易されず存続する', cond:g=>true },
+    stars:[
+      { label:'幕府心象を45以上で迎える', cond:g=>g.bakufu>=45 },
+      { label:'借財を開始時以下に抑える',   cond:g=>g.saikai<=g._startSaikai },
+      { label:'民心70以上の仁政を保つ',     cond:g=>g.minshin>=70 },
+    ]},
+  { id:'sc_antei', icon:'🌾', title:'藩政の礎', eraId:'antei',
+    startYear:1652, endYear:1664, // 48季
+    challenge:'泰平の世での産業育成。藩の地力を伸ばせ。',
+    blurb:'幕藩体制が固まり、各藩が独自の藩政を競う時代。新田・港・藩校——何に投資し、いかに藩を富ませるか。地力を築いた者が次代を制する。',
+    win:{ label:'1664年まで藩政を維持する', cond:g=>true },
+    stars:[
+      { label:'施設を2棟以上建設する',   cond:g=>g.builtFacilities.length>=2 },
+      { label:'石高を8%以上増やす',       cond:g=>g.koku>=g._startKoku*1.08 },
+      { label:'藩金3万両以上を蓄える',   cond:g=>g.money>=30000 },
+    ]},
+  { id:'sc_genroku', icon:'🎭', title:'元禄の華と影', eraId:'genroku',
+    startYear:1688, endYear:1700, // 48季
+    challenge:'好景気と浪費の誘惑。バブルに溺れるな。',
+    blurb:'元禄文化が爛熟し、特産品は高値で売れる。だが奢侈の風潮が藩財政を蝕む。繁栄を謳歌しつつ、放漫経営で身を滅ぼさぬ均衡が問われる。',
+    win:{ label:'1700年まで財政を破綻させない', cond:g=>true },
+    stars:[
+      { label:'威信80以上の格式を示す',       cond:g=>g.prestige>=80 },
+      { label:'借財を石高の50%以下に保つ',   cond:g=>g.saikai<=g.koku*0.5 },
+      { label:'民心75以上を維持する',         cond:g=>g.minshin>=75 },
+    ]},
+  { id:'sc_kansei', icon:'⚖️', title:'寛政の改革', eraId:'bunsei',
+    startYear:1787, endYear:1799, // 48季
+    challenge:'倹約令と飢饉。借財まみれの藩を立て直せ。',
+    blurb:'松平定信の寛政の改革が各藩に倹約を強いる。多くの藩は累積した借財に苦しんでいる。緊縮か殖産か——藩を再建する手腕が試される。',
+    win:{ label:'1799年まで藩を維持する', cond:g=>true },
+    stars:[
+      { label:'借財を開始時の半分以下に減らす', cond:g=>g.saikai<=g._startSaikai*0.5 },
+      { label:'民心75以上に回復させる',         cond:g=>g.minshin>=75 },
+      { label:'蘭学40以上の素地を作る',         cond:g=>g.rankaku>=40 },
+    ]},
+  { id:'sc_kurofune', icon:'📜', title:'黒船前夜', eraId:'bunsei',
+    startYear:1840, endYear:1853, // 52季
+    challenge:'迫る外圧。富国強兵と蘭学で備えよ。',
+    blurb:'アヘン戦争の報が伝わり、日本近海に異国船が出没する。やがて来る激動に備え、蘭学を興し軍を近代化できるか。1853年、黒船が浦賀に来る。',
+    win:{ label:'1853年（黒船来航）を迎える', cond:g=>true },
+    stars:[
+      { label:'蘭学60以上を達成する',     cond:g=>g.rankaku>=60 },
+      { label:'軍事力70以上を整える',     cond:g=>g.military>=70 },
+      { label:'洋式装備Lv1以上を導入する', cond:g=>g.mil&&g.mil.equipment>=1 },
+    ]},
+  { id:'sc_ishin', icon:'🌅', title:'維新の選択', eraId:'bakumatsu',
+    startYear:1853, endYear:1868, // 60季
+    challenge:'倒幕か佐幕か。藩の運命を懸けた決断。',
+    blurb:'黒船来航。尊王攘夷の嵐が吹き荒れ、藩論は割れる。倒幕の魁となるか、最後まで徳川に殉じるか。1868年、鳥羽伏見で全てが決する。',
+    win:{ label:'1868年（明治維新）を迎える', cond:g=>true },
+    stars:[
+      { label:'明確な陣営を貫く（倒幕70+ or 佐幕30-）', cond:g=>g.tobaku>=70||g.tobaku<=30 },
+      { label:'軍事力70以上の精兵を擁する',            cond:g=>g.military>=70 },
+      { label:'民心60以上で動乱を乗り切る',            cond:g=>g.minshin>=60 },
+    ]},
+];
+
+function getScenario(id){ return SCENARIOS.find(s=>s.id===id); }
+
+// シナリオ完了判定（processTurn から呼ぶ）
+function checkScenarioEnd(){
+  if(!gs.scenario || gs.scenarioDone) return;
+  const sc=getScenario(gs.scenario);
+  if(!sc) return;
+  if(gs.year>=sc.endYear){
+    gs.scenarioDone=true;
+    const winOk=sc.win.cond(gs); // 存続していれば基本クリア
+    const stars=sc.stars.map(s=>({label:s.label, ok:s.cond(gs)}));
+    const starCount=stars.filter(s=>s.ok).length;
+    showScenarioResult(sc, true, starCount, stars);
+  }
+}
+
+// localStorage に星の最高記録を保存
+function saveScenarioStars(scId, stars){
+  try{
+    const key='bakuhan_stars';
+    const data=JSON.parse(localStorage.getItem(key)||'{}');
+    if(!data[scId] || stars>data[scId]){ data[scId]=stars; localStorage.setItem(key,JSON.stringify(data)); }
+  }catch(e){}
+}
+function getScenarioStars(scId){
+  try{ return (JSON.parse(localStorage.getItem('bakuhan_stars')||'{}'))[scId]||0; }catch(e){ return 0; }
+}
+
+// シナリオ別の初期ステータス（その時代相応の状況からスタート）。null項目は藩既定値を使用。
+const SCENARIO_START = {
+  sc_keicho:   null, // 1603年・藩の既定値（開幕からの素直なスタート）
+  sc_antei:    { bakufu:55, minshin:65, money:4000, saikai:30000, rankaku:0,  prestige:50, military:30 },
+  sc_genroku:  { bakufu:55, minshin:68, money:6000, saikai:25000, rankaku:0,  prestige:52, military:32 },
+  sc_kansei:   { bakufu:50, minshin:56, money:2500, saikai:60000, rankaku:8,  prestige:48, military:30 }, // 借財まみれの再建
+  sc_kurofune: { bakufu:50, minshin:60, money:4000, saikai:45000, rankaku:12, prestige:52, military:38 },
+  sc_ishin:    { bakufu:48, minshin:58, money:3500, saikai:50000, rankaku:18, prestige:50, military:42 },
+};
 
 const POLICIES = [
   { key:'finance', label:'財政方針', options:[
@@ -1657,6 +1760,11 @@ function newState(domId) {
     eraTransitioned: {}, // { eraId: true } 移行済みフラグ
     eraBonusAP: 0,       // 文政期クリアで+1
     heirCrisisShown: false,
+    // --- シナリオ ---
+    scenario: null,      // シナリオID（null=通しモード）
+    scenarioDone: false, // 完了済みフラグ
+    _startSaikai: dom.startSaikai, // 星評価用の開始時借財（startGameで上書き）
+    _startKoku: dom.baseKoku,      // 星評価用の開始時石高
     events:[], usedHist:new Set(), turns:0, gameOver:false,
   };
 }
@@ -1705,7 +1813,7 @@ function calcIncome() {
   // 田沼期（1767-1786）重商主義ボーナス
   const curEra=getCurEra();
   if(curEra&&curEra.mechanics.tanuma&&gs.year>=1767&&gs.year<=1786&&gs.policies.finance===1) incMod+=.20;
-  const base=gs.koku*0.33/4*incMod; // 季次（月次÷12×3＝÷4）
+  const base=gs.koku*0.315/4*incMod; // 季次（月次÷12×3＝÷4）
   // 特産品収入: 基本600/品、鰹節は廻船交易×1.5で900
   // 元禄期は特産品収入×1.3
   const eraProdMod=curEra?curEra.mechanics.prodMod:1.0;
@@ -1717,7 +1825,8 @@ function calcIncome() {
   // 田植え支援の秋ボーナス
   if(gs.seasonBonus&&gs.seasonBonus.tanue&&getSeason()==='autumn') prod=Math.floor(prod*1.20);
   const lordMod=1+(gs.lord.politics-10)*.01;
-  const minshinMod=gs.minshin>=80?1.12:gs.minshin<=30?0.72:1.0;
+  // ★再設計: 高民心ボーナスを緩和（1.12→1.06）し雪だるまを抑制。低民心ペナルティは維持
+  const minshinMod=gs.minshin>=80?1.06:gs.minshin<=30?0.72:1.0;
   return Math.floor((base+prod)*lordMod*minshinMod);
 }
 
@@ -1741,12 +1850,18 @@ function calcExpense() {
   // 時代固有の支出修飾子（確立期+5%・改革期+10%・元禄期+5%）
   const era4exp=getCurEra();
   if(era4exp) expMod+=era4exp.mechanics.expMod;
-  const base=gs.koku*0.25/4*expMod; // 季次（÷4）
+  // ★再設計: 藩政費の基本係数0.28（年貢収入0.315よりやや低いが、参勤・禄・利息の加算で常時圧力）
+  const base=gs.koku*0.28/4*expMod; // 季次（÷4）
   const edo=gs.dom.baseKoku*0.018/4;
   const sankinCost=gs.sankin.inEdo?(gs.dom.edoDist*100+600)*3:0; // 季次（月次×3）
   const interest=gs.saikai*0.015; // 季0.5%×3（年6%）
   const facUpkeep=(gs.builtFacilities||[]).length*750; // 月250両×3季
-  return Math.floor(base+edo+sankinCost+interest+facUpkeep);
+  // ★再設計: 家臣の禄（人数×能力に比例する恒久的な金食い。小藩を圧殺しない軽めの係数）
+  const retSalary=(gs.retainers||[]).reduce((s,r)=>{
+    const ability=(r.seiji+r.sanjutsu+r.buryaku+r.gaiko)/4; // 平均能力
+    return s + 120 + ability*40 + (r.post?200:0); // 役職者は加増
+  },0);
+  return Math.floor(base+edo+sankinCost+interest+facUpkeep+retSalary);
 }
 
 // ========================== 季節進行 ==========================
@@ -1821,6 +1936,7 @@ function processTurn() {
   gs.prevStats={minshin:gs.minshin, bakufu:gs.bakufu, money:gs.money};
   if(!pendingChoice) {
     checkGameOver();
+    if(!gs.gameOver && !pendingChoice) checkScenarioEnd(); // シナリオ完了判定（鳥羽伏見等の選択中は待つ）
     if(!gs.gameOver){ advanceSeason(); renderAll(); }
   }
 }
@@ -1868,23 +1984,28 @@ function applyStats() {
   gs.bakufu=clamp(gs.bakufu+bd,0,bakufuMax);
 
   // 蘭学: 政策効果 + 藩主の学識（gakushiki）+ 紙特産品
+  // ★再設計: 蘭学は投資をやめると風化する（藩校建設で減衰を緩和）
   let rd=pol.education===1?1.8*Q:0;
   if(gs.year>1750) rd+=.2*Q;
   for(const t of gs.lord.traits) if(t.ef.rankakuD) rd+=t.ef.rankakuD*Q;
   rd+=(gs.facEffects&&gs.facEffects.rankakuSpeedBonus||0)*Q;
   rd+=gs.lord.gakushiki*0.05*Q; // ★学識が蘭学成長に直接寄与
   if(prods.includes('紙')) rd*=1.10;  // 紙特産: 蘭学成長+10%
-  gs.rankaku=clamp(gs.rankaku+rd,0,100);
+  const rankakuDecay=gs.builtFacilities&&gs.builtFacilities.includes('hankko')?1.0:2.0;
+  gs.rankaku=clamp(gs.rankaku+rd-rankakuDecay,0,100);
 
   // 軍事力: 政策 + 藩主の統率（command）+ 馬特産品
-  let mld=(pol.military===1?1.5:.3)*Q;
-  for(const t of gs.lord.traits) if(t.ef.milD) mld+=t.ef.milD*Q;
-  mld+=gs.lord.command*0.03*Q; // ★統率が軍事成長に直接寄与
+  // ★再設計: 軍備は維持しないと弛緩する。富国強兵で着実に増、軍役維持のみだと微減
+  let mld=(pol.military===1?2.4:0.6); // 季あたりの基本増分
+  for(const t of gs.lord.traits) if(t.ef.milD) mld+=t.ef.milD;
+  mld+=gs.lord.command*0.08; // ★統率が軍事成長に寄与
   if(prods.includes('馬')) mld*=1.20; // 馬特産: 軍事成長+20%
-  gs.military=clamp(gs.military+mld*.08,0,100+(gs.facEffects&&gs.facEffects.militaryCap||0));
+  const milDecay=1.5; // 弛緩（放置で減）
+  gs.military=clamp(gs.military+mld-milDecay,0,100+(gs.facEffects&&gs.facEffects.militaryCap||0));
 
   // 威信: 収束 + 政策 + 藩主の文化（culture）+ 絹・陶磁器特産品
-  let pd=(50-gs.prestige)*.005*Q;
+  // ★再設計: 収束を強め、高威信ほど維持が難しい（驕りは身を滅ぼす）
+  let pd=(50-gs.prestige)*.013*Q;
   if(pol.education===0) pd+=.3*Q; if(pol.shogunate===0) pd+=.5*Q;
   for(const t of gs.lord.traits) if(t.ef.prestigeD) pd+=t.ef.prestigeD*Q;
   pd+=gs.lord.culture*0.02*Q; // ★文化が威信成長に直接寄与
@@ -2020,7 +2141,8 @@ function resolveChoice(idx) {
   document.getElementById('choice-modal').style.display='none';
   document.getElementById('btn-turn').disabled=false;
   checkGameOver();
-  if(!gs.gameOver){ advanceSeason(); }
+  if(!gs.gameOver && !pendingChoice) checkScenarioEnd(); // 鳥羽伏見等の決断後にシナリオ完了を判定
+  if(!gs.gameOver && !pendingChoice){ advanceSeason(); }
   renderAll();
 }
 
@@ -2598,6 +2720,31 @@ function showSummary(icon, title, desc) {
   document.getElementById('summary-modal').style.display='flex';
 }
 
+// シナリオ完了画面（星評価つき）
+function showScenarioResult(sc, winOk, starCount, stars){
+  gs.gameOver=true;
+  document.getElementById('go-modal').style.display='none';
+  saveScenarioStars(sc.id, starCount);
+  const best=getScenarioStars(sc.id);
+  const starRow=(n)=>'★★★☆☆☆'.slice(3-n,6-n); // n個の★ + 残り☆
+  const rankLabel = starCount===3?'天下の名君':starCount===2?'優れた藩主':starCount===1?'まずまずの治世':'辛くも存続';
+  const rankIcon  = starCount===3?'👑':starCount===2?'🎖️':starCount===1?'🍃':'🌫️';
+  document.getElementById('sum-icon').textContent=rankIcon;
+  document.getElementById('sum-title').textContent=`${sc.icon} ${sc.title} 突破！`;
+  document.getElementById('sum-desc').innerHTML=`${sc.endYear}年、${gs.dom.name}は時代を乗り切った。<br><strong style="font-size:1.3rem;color:var(--gold);letter-spacing:.15rem">${starRow(starCount)}</strong><br><strong>${rankLabel}</strong>${best>starCount?`（自己最高 ${'★'.repeat(best)}）`:starCount>=best?'（自己最高記録更新！）':''}`;
+  document.getElementById('sum-grid').innerHTML=`
+    <div class="summary-item"><div class="sl">藩名</div><div class="sv">${gs.dom.name}</div></div>
+    <div class="summary-item"><div class="sl">最終石高</div><div class="sv">${fmtK(gs.koku)}</div></div>
+    <div class="summary-item"><div class="sl">最終藩金</div><div class="sv">${fmt(gs.money)}</div></div>
+    <div class="summary-item"><div class="sl">最終借財</div><div class="sv">${fmt(gs.saikai)}</div></div>
+    <div class="summary-item"><div class="sl">最終民心</div><div class="sv">${Math.floor(gs.minshin)}</div></div>
+    <div class="summary-item"><div class="sl">最終幕府心象</div><div class="sv">${Math.floor(gs.bakufu)}</div></div>`;
+  document.getElementById('sum-achievs').innerHTML=
+    `<div style="font-size:.78rem;color:var(--ink-light);margin-bottom:.5rem">◆ 星目標（${starCount}/3 達成）</div>`+
+    stars.map(s=>`<div style="font-size:.8rem;margin-bottom:.25rem;color:${s.ok?'var(--green)':'var(--ink-light)'}">${s.ok?'★':'☆'} ${s.label}</div>`).join('');
+  document.getElementById('summary-modal').style.display='flex';
+}
+
 // ========================== SUCCESSION ==========================
 function performSuccession() {
   const old=`${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）`;
@@ -2682,7 +2829,8 @@ function checkGameOver() {
     );
     return;
   }
-  if(gs.year>=1868){
+  // 通しモードのみ：1868年で幕藩体制の終焉エンディング（シナリオモードは星評価へ委譲）
+  if(gs.year>=1868 && !gs.scenario){
     const milEq=gs.mil?gs.mil.equipment:0;
     const milNote=milEq>=2?'洋式近代化軍を誇り、':'';
     const ending = gs.tobaku>65 ? `${milNote}倒幕派として明治新政府を支持し、廃藩置県を経て新しい時代へと歩み出した。` :
@@ -2844,21 +2992,40 @@ function renderRight(){
   // 時代ミニゴール進捗
   const eraSec=document.getElementById('era-mingoal-section');
   if(eraSec){
-    const ce=getCurEra();
-    if(ce){
-      const mg=ce.miniGoal;
-      const prog=mg.prog(gs);
-      const achieved=gs.eraTransitioned&&gs.eraTransitioned[ce.id]&&ERA_PHASES.indexOf(ce)<ERA_PHASES.length-1;
-      // 達成済み（次時代に移行済み）なら「クリア済み」表示
-      const isFinal=ce.id==='bakumatsu';
+    if(gs.scenario){
+      // シナリオモード：勝利条件＋星目標の達成状況を表示
+      const sc=getScenario(gs.scenario);
+      const yearsLeft=Math.max(0,sc.endYear-gs.year);
+      const totalYears=sc.endYear-sc.startYear;
+      const prog=Math.min(100,Math.round((1-yearsLeft/totalYears)*100));
+      const starRows=sc.stars.map(s=>{
+        const ok=s.cond(gs);
+        return `<div style="font-size:.68rem;margin-bottom:.15rem;color:${ok?'var(--green)':'var(--ink-light)'}">${ok?'★':'☆'} ${s.label}</div>`;
+      }).join('');
+      const starNow=sc.stars.filter(s=>s.cond(gs)).length;
       eraSec.style.display='';
-      eraSec.innerHTML=`<h4>◆ ${ce.icon}${ce.label}（〜${ce.end}年）</h4>
+      eraSec.innerHTML=`<h4>◆ ${sc.icon}${sc.title}</h4>
         <div class="era-goal-box">
-          <div class="eg-desc">${mg.desc}</div>
+          <div class="eg-desc">${sc.win.label}</div>
           <div class="eg-bar-wrap"><div class="eg-bar" style="width:${prog}%"></div></div>
-          <div class="eg-hint">${mg.hint(gs)}</div>
-          <div style="font-size:.65rem;margin-top:.2rem;color:var(--ink-light)">残り約${Math.max(0,ce.end-gs.year)}年</div>
+          <div style="font-size:.65rem;color:var(--ink-light);margin-bottom:.3rem">${gs.year}年 → ${sc.endYear}年（残り約${yearsLeft}年）</div>
+          <div style="font-size:.68rem;color:var(--gold);font-weight:bold;margin-bottom:.2rem">★ ${starNow}/3 達成見込み</div>
+          ${starRows}
         </div>`;
+    } else {
+      const ce=getCurEra();
+      if(ce){
+        const mg=ce.miniGoal;
+        const prog=mg.prog(gs);
+        eraSec.style.display='';
+        eraSec.innerHTML=`<h4>◆ ${ce.icon}${ce.label}（〜${ce.end}年）</h4>
+          <div class="era-goal-box">
+            <div class="eg-desc">${mg.desc}</div>
+            <div class="eg-bar-wrap"><div class="eg-bar" style="width:${prog}%"></div></div>
+            <div class="eg-hint">${mg.hint(gs)}</div>
+            <div style="font-size:.65rem;margin-top:.2rem;color:var(--ink-light)">残り約${Math.max(0,ce.end-gs.year)}年</div>
+          </div>`;
+      }
     }
   }
 
@@ -2911,7 +3078,7 @@ function renderEvents(){
 function renderFinance(){
   const inc=calcIncome(),exp=calcExpense();
   const si=SEASON_INFO[getSeason()];
-  const base=Math.floor(gs.koku*.33/4*si.incMod);
+  const base=Math.floor(gs.koku*.315/4*si.incMod);
   const kokuPer1k=gs.koku>0?Math.floor(base/(gs.koku/1000)):0;
   // 特産品別収入内訳
   const prods=gs.dom.products;
@@ -3098,8 +3265,8 @@ function notif(text){
 
 // ========================== TITLE ==========================
 let selDomain=null;
-let selGoalId=null;  // null=志なし
-let selEraId='keicho'; // デフォルト：確立期
+let selGoalId=null;       // null=志なし
+let selScenarioId='sc_keicho'; // 既定：関ヶ原の後始末。'campaign'=通し
 
 function initTitle(){
   document.getElementById('domain-grid').innerHTML=DOMAINS.map(d=>`
@@ -3121,14 +3288,28 @@ function initTitle(){
       <div class="gl">${g.label}</div>
       <div class="gd">${g.desc}</div>
     </button>`).join('');
-  // 時代グリッド（確立期は「全時代通し」ラベル）
-  document.getElementById('era-grid').innerHTML=ERA_PHASES.map(e=>`
-    <button class="era-btn${e.id==='keicho'?' sel':''}" id="eb-${e.id}" onclick="selEra('${e.id}')">
-      <span class="ei">${e.icon}</span>
-      <span class="el">${e.label}</span>
-      <span class="ey">${e.start}〜${e.end}年</span>
-      <div class="ed">${e.id==='keicho'?'全時代通し':e.flavor}</div>
-    </button>`).join('');
+  renderScenarioGrid();
+}
+
+function renderScenarioGrid(){
+  // 6シナリオ + 通しモード
+  const cards=SCENARIOS.map(sc=>{
+    const best=getScenarioStars(sc.id);
+    const starStr=best>0?'★'.repeat(best)+'☆'.repeat(3-best):'☆☆☆';
+    const len=Math.round((sc.endYear-sc.startYear));
+    return `<button class="era-btn${sc.id===selScenarioId?' sel':''}" id="eb-${sc.id}" onclick="selScenario('${sc.id}')">
+      <span class="ei">${sc.icon}</span><span class="el">${sc.title}</span>
+      <span class="ey">${sc.startYear}〜${sc.endYear}年・約${len}年</span>
+      <div class="ed">${sc.challenge}</div>
+      <div style="color:var(--gold);font-size:.7rem;margin-top:.2rem">最高記録 ${starStr}</div>
+    </button>`;
+  }).join('');
+  const campaign=`<button class="era-btn${selScenarioId==='campaign'?' sel':''}" id="eb-campaign" onclick="selScenario('campaign')">
+      <span class="ei">📚</span><span class="el">通し（上級）</span>
+      <span class="ey">1603〜1868年・全265年</span>
+      <div class="ed">幕藩体制の全期間を一気に統治する長編モード。</div>
+    </button>`;
+  document.getElementById('era-grid').innerHTML=cards+campaign;
 }
 
 function selDom(id){
@@ -3138,7 +3319,6 @@ function selDom(id){
   document.getElementById('goal-step').style.display='block';
   document.getElementById('era-step').style.display='block';
   document.getElementById('btn-start').disabled=false;
-  // ゴール・時代をリセット
   selGoalId=null;
   document.querySelectorAll('.goal-btn').forEach(b=>b.classList.remove('sel'));
 }
@@ -3149,8 +3329,8 @@ function selGoal(id){
   if(selGoalId) document.getElementById(`gb-${selGoalId}`)?.classList.add('sel');
 }
 
-function selEra(id){
-  selEraId=id;
+function selScenario(id){
+  selScenarioId=id;
   document.querySelectorAll('.era-btn').forEach(b=>b.classList.remove('sel'));
   document.getElementById(`eb-${id}`)?.classList.add('sel');
 }
@@ -3159,27 +3339,35 @@ function startGame(){
   if(!selDomain) return;
   gs=newState(selDomain);
   gs.goal=selGoalId||null;
-  // ショートプレイ：選択時代の初期ステータスを適用
-  const startEra=ERA_PHASES.find(e=>e.id===selEraId)||ERA_PHASES[0];
-  if(startEra.id!==ERA_PHASES[0].id && startEra.shortStart){
-    const ss=startEra.shortStart;
-    gs.year=startEra.start; gs.month=1;
-    gs.bakufu=ss.bakufu; gs.minshin=ss.minshin; gs.money=ss.money;
-    gs.saikai=ss.saikai; gs.rankaku=ss.rankaku; gs.prestige=ss.prestige;
-    gs.military=ss.military;
-    gs.prevStats={minshin:ss.minshin, bakufu:ss.bakufu, money:ss.money};
-    // 前時代を全て「移行済み」にして移行イベントが再発しないようにする
-    for(const e of ERA_PHASES){
-      if(e.start>=startEra.start) break;
-      gs.eraTransitioned[e.id]=true;
+  const isCampaign=(selScenarioId==='campaign');
+  const sc=isCampaign?null:getScenario(selScenarioId);
+
+  if(sc){
+    gs.scenario=sc.id;
+    gs.year=sc.startYear; gs.month=1;
+    // 初期ステータス上書き
+    const ss=SCENARIO_START[sc.id];
+    if(ss){
+      gs.bakufu=ss.bakufu; gs.minshin=ss.minshin; gs.money=ss.money;
+      gs.saikai=ss.saikai; gs.rankaku=ss.rankaku; gs.prestige=ss.prestige; gs.military=ss.military;
     }
+    gs._startSaikai=gs.saikai; gs._startKoku=gs.koku;
+    gs.prevStats={minshin:gs.minshin, bakufu:gs.bakufu, money:gs.money};
+    // 開始年より前の時代移行イベントは発火済みにする
+    for(const e of ERA_PHASES){ if(e.end<sc.startYear) gs.eraTransitioned[e.id]=true; }
+    syncMilitary();
+  } else {
+    gs._startSaikai=gs.saikai; gs._startKoku=gs.koku;
   }
-  // 行動力を初期化
+
   gs.maxAP=calcMaxAP(); gs.ap=gs.maxAP;
   const traitStr=gs.lord.traits.map(t=>t.label).join('・');
   const goalStr=gs.goal?(()=>{const g=GOALS.find(x=>x.id===gs.goal);return g?` 志：「${g.icon}${g.label}」。`:'';})():'';
-  const eraStr=startEra.id!==ERA_PHASES[0].id?`【${startEra.icon}${startEra.label}よりショートプレイ】`:'';
-  addEvent('history','ゲーム開始',`${gs.year}年（${era(gs.year)}）春、${gs.dom.name}の藩政が始まった。${eraStr}藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。性格：${traitStr}。行動力：${gs.maxAP}。${goalStr}`);
+  if(sc){
+    addEvent('history',`${sc.icon} ${sc.title}`,`${sc.blurb}`);
+    addEvent('info','勝利条件',`◆ ${sc.win.label}　／　★目標：${sc.stars.map(s=>s.label).join(' ／ ')}`);
+  }
+  addEvent('history','治世の始まり',`${gs.year}年（${era(gs.year)}）春、${gs.dom.name}の藩政が始まった。藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。性格：${traitStr}。行動力：${gs.maxAP}。${goalStr}`);
   document.getElementById('title-screen').style.display='none';
   document.getElementById('game-screen').style.display='flex';
   renderAll();
