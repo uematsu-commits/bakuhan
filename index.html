@@ -515,6 +515,7 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
         <div id="facility-status"></div>
         <button class="btn-fac" onclick="openFacilityModal()">建設を計画する 🏗️</button>
       </div>
+      <div class="psec" id="threat-section" style="display:none"></div>
       <div class="psec" id="era-mingoal-section" style="display:none"></div>
       <div class="psec" id="goal-progress-section" style="display:none"></div>
       <div class="psec">
@@ -589,6 +590,9 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
     </div>
 
     <div class="help-sec">
+      <h3>脅威メーター（一部シナリオ）</h3>
+      <div style="font-size:.78rem;color:var(--ink-light);margin-bottom:.5rem">シナリオによっては、毎季じわじわ上昇する固有の脅威がある。放置すると藩を蝕み、星目標が遠のく。右パネルのボタンから<strong>AP</strong>を割いて能動的に抑え込むこと。<br>例：<strong>🍶 元禄の華と影</strong>では「奢侈」が上昇し、高まるほど出費がかさみ民心・威信を削る。「📜 倹約を戒める」（AP2・奢侈-30）で抑える——だが格式を抑えるため威信が少し下がる。<em>いつ抑えていつ我慢するかが腕の見せどころ。</em></div>
+
       <h3>時代とミニゴール</h3>
       <div style="font-size:.78rem;color:var(--ink-light);margin-bottom:.4rem">時代が変わるとき、前時代のミニゴール達成を自動判定。成功するとボーナスが入る。</div>
       <div class="help-grid">
@@ -934,14 +938,33 @@ const SCENARIOS = [
     ]},
   { id:'sc_genroku', icon:'🎭', title:'元禄の華と影', eraId:'genroku',
     startYear:1688, endYear:1700, // 48季
-    challenge:'好景気と浪費の誘惑。バブルに溺れるな。',
-    blurb:'元禄文化が爛熟し、特産品は高値で売れる。だが奢侈の風潮が藩財政を蝕む。繁栄を謳歌しつつ、放漫経営で身を滅ぼさぬ均衡が問われる。',
+    challenge:'好景気と浪費の誘惑。奢侈メーターを抑え込め。',
+    blurb:'元禄文化が爛熟し、特産品は高値で売れる。だが藩邸の暮らしは年々贅沢になり、放っておけば「奢侈」が藩を蝕む。繁栄を謳歌しつつ、いかに浪費の風潮を律するか。',
     win:{ label:'1700年まで財政を破綻させない', cond:g=>true },
     stars:[
       { label:'威信80以上の格式を示す',       cond:g=>g.prestige>=80 },
       { label:'借財を石高の50%以下に保つ',   cond:g=>g.saikai<=g.koku*0.5 },
       { label:'民心75以上を維持する',         cond:g=>g.minshin>=75 },
-    ]},
+    ],
+    // ★脅威メーター：放置すると上昇し、藩を蝕む。APを割いて能動的に抑える必要がある
+    threat:{
+      id:'shashi', label:'奢侈', icon:'🍶', cls:'threat-shashi',
+      intro:'藩邸に元禄の華やかな風が吹き込む。家中の暮らしは日に日に贅沢になっていく。放置すれば奢侈が藩を食い潰すだろう。',
+      // 毎季の上昇（繁栄・高威信ほど加速）
+      rise:g=>3 + (g.prestige>=70?2:0) + (g.money>40000?3:g.money>15000?1:0),
+      // 毎季の影響（メーター値lvに応じて金を吸い、高位で民心・威信を削る）
+      apply:g=>{
+        const lv=g.threatLevel;
+        const cost=Math.floor(lv*lv*0.9); // lv50で2250, lv80で5760, lv100で9000/季
+        g.money=Math.max(0,g.money-cost);
+        if(lv>=50) g.minshin=clamp(g.minshin-(lv-50)*0.03,0,100); // 奢侈への民の反感
+        if(lv>=80){ g.prestige=clamp(g.prestige-0.8,0,100); g.bakufu=clamp(g.bakufu-0.4,0,100); } // 放漫の悪評
+        return cost;
+      },
+      // 抑制アクション（AP建て）
+      curb:{ label:'倹約を戒める', icon:'📜', ap:2, drop:30, prestigeCost:2,
+             desc:'藩主自ら範を示し、奢侈の風潮を戒める。奢侈-30。だが格式を抑えるため威信が少し下がる。' },
+    }},
   { id:'sc_kansei', icon:'⚖️', title:'寛政の改革', eraId:'bunsei',
     startYear:1787, endYear:1799, // 48季
     challenge:'倹約令と飢饉。借財まみれの藩を立て直せ。',
@@ -1779,6 +1802,8 @@ function newState(domId) {
     // --- シナリオ ---
     scenario: null,      // シナリオID（null=通しモード）
     scenarioDone: false, // 完了済みフラグ
+    threatLevel: -1,     // 脅威メーター（-1=脅威なし, 0〜100）
+    threatId: null,      // 脅威の種別ID
     _startSaikai: dom.startSaikai, // 星評価用の開始時借財（startGameで上書き）
     _startKoku: dom.baseKoku,      // 星評価用の開始時石高
     events:[], usedHist:new Set(), turns:0, gameOver:false,
@@ -1941,19 +1966,58 @@ function advanceSeason() {
   gs.turns++;
 }
 
+// ========================== 脅威メーター ==========================
+// シナリオ固有の脅威（例：元禄の奢侈）を毎季上昇させ、影響を適用する。
+// プレイヤーは curbThreat()（AP建て）で能動的に抑え込む必要がある。
+function getThreatCfg(){
+  if(!gs.scenario || gs.threatLevel<0) return null;
+  const sc=getScenario(gs.scenario);
+  return sc&&sc.threat?sc.threat:null;
+}
+function applyThreat(){
+  const cfg=getThreatCfg(); if(!cfg) return;
+  // 上昇
+  gs.threatLevel=clamp(gs.threatLevel+(cfg.rise?cfg.rise(gs):4),0,100);
+  // 影響
+  const cost=cfg.apply?cfg.apply(gs):0;
+  // 節目の通知（境界をまたいだ季のみ）
+  const lv=gs.threatLevel;
+  const band=lv>=80?3:lv>=60?2:lv>=40?1:0;
+  if(gs._threatBand===undefined) gs._threatBand=0;
+  if(band>gs._threatBand){
+    if(band>=3) addEvent('critical',`${cfg.icon} ${cfg.label}が極限に`,`${cfg.label}が藩を激しく蝕んでいる（${Math.round(lv)}）。毎季の出費がかさみ、民心も威信も削られる。早急に「${cfg.curb.label}」で抑えよ。`);
+    else if(band>=2) addEvent('bad',`${cfg.icon} ${cfg.label}の高まり`,`${cfg.label}が高水準（${Math.round(lv)}）。浪費が藩財政を圧迫し、民の不満も募り始めた。`);
+    else addEvent('info',`${cfg.icon} ${cfg.label}の進行`,`${cfg.label}が${Math.round(lv)}まで上昇した。放置は禁物だ。`);
+    gs._threatBand=band;
+  } else if(band<gs._threatBand){ gs._threatBand=band; }
+}
+// 脅威を抑制する（特別施策ボタンから呼ぶ）
+function curbThreat(){
+  const cfg=getThreatCfg(); if(!cfg) return;
+  const curb=cfg.curb;
+  if(gs.ap!==undefined && gs.ap<curb.ap){ notif('行動力が不足しています'); return; }
+  if(gs.ap!==undefined) gs.ap=Math.max(0,gs.ap-curb.ap);
+  gs.threatLevel=clamp(gs.threatLevel-curb.drop,0,100);
+  if(curb.prestigeCost) gs.prestige=clamp(gs.prestige-curb.prestigeCost,0,100);
+  if(curb.moneyCost) gs.money=Math.max(0,gs.money-curb.moneyCost);
+  addEvent('good',`${curb.icon} ${curb.label}`,`${cfg.label}を抑え込んだ（-${curb.drop}、現在${Math.round(gs.threatLevel)}）。${curb.prestigeCost?'格式を抑えたため威信が下がった。':''}`);
+  renderAll();
+}
+
 function processTurn() {
   if(!gs||gs.gameOver||pendingChoice) return;
   gs.turnEvents=[];  // 今ターンのイベントをリセット
   // 時代移行チェック（新年度に時代境界をまたいだ直後）
   checkEraTransition();
   const inc=calcIncome(), exp=calcExpense();
-  // 元禄奢侈費（毎季固定）
+  // 元禄奢侈費（毎季固定）— シナリオの奢侈メーターが有効な時は二重計上を避けて無効化
   const eraM=getCurEra()&&getCurEra().mechanics;
-  const genCost=eraM?eraM.genrokuCost:0;
+  const genCost=(gs.threatId==='shashi')?0:(eraM?eraM.genrokuCost:0);
   gs.money+=inc-exp-genCost;
   if(genCost>0) addEvent('info','元禄奢侈費',`元禄の世の豪奢な風潮により${fmt(genCost)}を支出した。`);
   if(gs.money<0){ const b=Math.abs(gs.money)+300; gs.saikai+=b; gs.money=0; addEvent('info','借財増加',`資金不足により大坂商人から${fmt(b)}を借り入れた。`); }
   applyStats();
+  applyThreat(); // 脅威メーターの上昇・影響
   handleSankin();
   processConstruction();
   applyRetainerLoyalty();
@@ -3055,6 +3119,33 @@ function renderRight(){
   document.getElementById('bakufu-status').innerHTML=bf>=70?'<span style="color:var(--green)">良好 — 関係は安定している</span>':bf>=40?'<span style="color:var(--wood)">普通 — 問題なし</span>':bf>=20?'<span style="color:var(--red)">悪化 — 幕府の警戒が増大</span>':'<span style="color:var(--red)"><strong>危機的 — 改易の危機！</strong></span>';
   if(gs.sankin.inEdo) document.getElementById('bakufu-status').innerHTML+='<br><span style="color:var(--indigo)">参勤交代中（江戸在府）</span>';
   // 時代ミニゴール進捗
+  // 脅威メーター表示
+  const thSec=document.getElementById('threat-section');
+  if(thSec){
+    const cfg=getThreatCfg();
+    if(cfg){
+      const lv=Math.round(gs.threatLevel);
+      const color=lv>=80?'var(--red)':lv>=60?'#d9772e':lv>=40?'var(--wood)':'var(--green)';
+      const curb=cfg.curb;
+      const canCurb=gs.ap===undefined||gs.ap>=curb.ap;
+      const sevText=lv>=80?'極限—藩を蝕んでいる':lv>=60?'高い—早急に抑えよ':lv>=40?'上昇中':'まだ低い';
+      thSec.style.display='';
+      thSec.innerHTML=`<h4>◆ ${cfg.icon} ${cfg.label}メーター</h4>
+        <div style="background:rgba(139,26,26,.06);border:1px solid ${color};border-radius:6px;padding:.5rem .6rem">
+          <div style="height:14px;background:#d0c0a0;border-radius:4px;overflow:hidden;margin-bottom:.25rem">
+            <div style="height:100%;width:${lv}%;background:${color};transition:width .4s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:.4rem">
+            <span style="color:${color};font-weight:bold">${lv}/100</span><span style="color:var(--ink-light)">${sevText}</span>
+          </div>
+          <button onclick="curbThreat()" ${canCurb?'':'disabled'} style="width:100%;background:${canCurb?'var(--indigo)':'#999'};color:#fff;border:none;padding:.4rem;border-radius:4px;font-family:inherit;font-size:.74rem;cursor:${canCurb?'pointer':'not-allowed'}">
+            ${curb.icon} ${curb.label}（AP${curb.ap}・-${curb.drop}）
+          </button>
+          <div style="font-size:.63rem;color:var(--ink-light);margin-top:.3rem;line-height:1.4">${curb.desc}</div>
+        </div>`;
+    } else { thSec.style.display='none'; }
+  }
+
   const eraSec=document.getElementById('era-mingoal-section');
   if(eraSec){
     if(gs.scenario){
@@ -3420,6 +3511,8 @@ function startGame(){
     gs.prevStats={minshin:gs.minshin, bakufu:gs.bakufu, money:gs.money};
     // 開始年より前の時代移行イベントは発火済みにする
     for(const e of ERA_PHASES){ if(e.end<sc.startYear) gs.eraTransitioned[e.id]=true; }
+    // 脅威メーターの初期化
+    if(sc.threat){ gs.threatLevel=0; gs.threatId=sc.threat.id; }
     syncMilitary();
   } else {
     gs._startSaikai=gs.saikai; gs._startKoku=gs.koku;
@@ -3431,6 +3524,7 @@ function startGame(){
   if(sc){
     addEvent('history',`${sc.icon} ${sc.title}`,`${sc.blurb}`);
     addEvent('info','勝利条件',`◆ ${sc.win.label}　／　★目標：${sc.stars.map(s=>s.label).join(' ／ ')}`);
+    if(sc.threat) addEvent('bad',`${sc.threat.icon} ${sc.threat.label}の兆し`,`${sc.threat.intro}「${sc.threat.curb.label}」（AP${sc.threat.curb.ap}）で能動的に抑え込め。`);
   }
   addEvent('history','治世の始まり',`${gs.year}年（${era(gs.year)}）春、${gs.dom.name}の藩政が始まった。藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。性格：${traitStr}。行動力：${gs.maxAP}。${goalStr}`);
   document.getElementById('title-screen').style.display='none';
