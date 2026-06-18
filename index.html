@@ -363,11 +363,6 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
     <p style="font-size:.72rem;color:#a09080;margin-bottom:.6rem">各シナリオは約12〜15年の独立した時代ミッション。生き延びて★3つの達成を目指せ。通しモードは全265年の長編（上級者向け）。</p>
     <div class="era-grid" id="era-grid"></div>
   </div>
-  <div id="goal-step">
-    <h3>◆ 志を選ぶ（任意）</h3>
-    <p style="font-size:.72rem;color:#a09080;margin-bottom:.7rem">通しモード向けの長期目標。シナリオでは星目標が主軸なので選ばなくても構いません。</p>
-    <div class="goal-grid" id="goal-grid"></div>
-  </div>
   <button class="btn-primary" id="btn-start" disabled>開 幕</button>
   <p style="margin-top:.8rem;font-size:.72rem;color:#706050">藩とシナリオを選択してください ／ Spaceキーでターン進行</p>
 </div>
@@ -418,7 +413,7 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
         <div style="display:flex;flex-wrap:wrap;gap:.25rem" id="product-list"></div>
       </div>
       <div class="psec">
-        <h4>◆ 家臣団勢力</h4>
+        <h4>◆ 家中の路線</h4>
         <div class="fbar">
           <div class="fmon" id="fac-mon">門閥派</div>
           <div class="fjit" id="fac-jit">実力派</div>
@@ -427,6 +422,7 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
           <span>門閥派: <span id="fac-mv">-</span></span>
           <span>実力派: <span id="fac-jv">-</span></span>
         </div>
+        <div style="font-size:.63rem;color:var(--ink-light);margin-top:.25rem;line-height:1.4">門閥派優位＝民心が安定／実力派優位＝蘭学・軍事が伸びる</div>
       </div>
       <div class="psec">
         <h4>◆ 世継ぎ</h4>
@@ -460,6 +456,9 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
       </div>
       <div id="tab-actions" class="tcontent">
         <div id="ap-header-block"></div>
+        <div style="font-size:.74rem;color:var(--ink-light);margin:.2rem 0 .4rem;border-bottom:1px solid var(--border);padding-bottom:.2rem">◆ 藩政投資（毎季・行動力で育成）</div>
+        <div class="action-grid" id="invest-grid"></div>
+        <div style="font-size:.74rem;color:var(--ink-light);margin:.7rem 0 .4rem;border-bottom:1px solid var(--border);padding-bottom:.2rem">◆ 特別施策</div>
         <div class="action-grid" id="action-grid"></div>
       </div>
       <div id="tab-finance" class="tcontent">
@@ -517,7 +516,6 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
       </div>
       <div class="psec" id="threat-section" style="display:none"></div>
       <div class="psec" id="era-mingoal-section" style="display:none"></div>
-      <div class="psec" id="goal-progress-section" style="display:none"></div>
       <div class="psec">
         <h4>◆ 警告</h4>
         <div id="warnings" style="font-size:.75rem"></div>
@@ -551,12 +549,16 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
     </div>
 
     <div class="help-sec">
-      <h3>行動力（AP）</h3>
-      <div style="font-size:.78rem;margin-bottom:.4rem;color:var(--ink-light)">毎季はじめに満タン補充。特別施策・政策変更・季節コマンドに消費する。</div>
-      <div class="help-row">➕ 政治能力が高いほどAPが増える（政治20で+4）</div>
-      <div class="help-row">➕ 家老が優秀（政治8以上）だとAP+1</div>
-      <div class="help-row">➕ 文政期ミニゴール達成でAP+1/季（永続）</div>
+      <h3>行動力（AP）と毎季の選択</h3>
+      <div style="font-size:.78rem;margin-bottom:.4rem;color:var(--ink-light)">毎季はじめに満タン補充。<strong>APは最も貴重な資源</strong>——脅威の抑制・藩政投資・特別施策・政策変更すべてに消費する。やりたいことは多く、APは足りない。何に割くかが毎季の勝負。</div>
+      <div class="help-row">➕ 政治能力が高いほどAPが増える（政治20で+4）／家老が優秀でAP+1</div>
+      <div class="help-row">🌱 <strong>藩政投資タブ</strong>：殖産（特産品を育てて収入・効果を伸ばす）、蘭学奨励・軍備強化・民政巡察。少額の金＋AP1で、余った金を将来の力に変える。</div>
       <div class="help-row">🔒 冬の「藩政評定」で政策変更がその季のみ無料になる</div>
+    </div>
+
+    <div class="help-sec">
+      <h3>脅威メーター（全シナリオ）</h3>
+      <div style="font-size:.78rem;color:var(--ink-light);line-height:1.6">各シナリオには毎季上昇する固有の脅威がある（確立期＝幕府の疑念／安定＝新田の荒廃／元禄＝奢侈／寛政＝飢饉の連鎖／黒船＝攘夷の激化／維新＝藩論の分裂）。<strong>放置すると藩を蝕み、極限に達し続けると御家が滅ぶ。</strong>右パネルのボタンからAPを割いて能動的に抑え込め。何もしなければ生き残れない。</div>
     </div>
 
     <div class="help-sec">
@@ -590,10 +592,7 @@ body{font-family:'Hiragino Mincho ProN','Yu Mincho','MS Mincho',serif;background
     </div>
 
     <div class="help-sec">
-      <h3>脅威メーター（一部シナリオ）</h3>
-      <div style="font-size:.78rem;color:var(--ink-light);margin-bottom:.5rem">シナリオによっては、毎季じわじわ上昇する固有の脅威がある。放置すると藩を蝕み、星目標が遠のく。右パネルのボタンから<strong>AP</strong>を割いて能動的に抑え込むこと。<br>例：<strong>🍶 元禄の華と影</strong>では「奢侈」が上昇し、高まるほど出費がかさみ民心・威信を削る。「📜 倹約を戒める」（AP2・奢侈-30）で抑える——だが格式を抑えるため威信が少し下がる。<em>いつ抑えていつ我慢するかが腕の見せどころ。</em></div>
-
-      <h3>時代とミニゴール</h3>
+      <h3>時代とミニゴール（通しモード）</h3>
       <div style="font-size:.78rem;color:var(--ink-light);margin-bottom:.4rem">時代が変わるとき、前時代のミニゴール達成を自動判定。成功するとボーナスが入る。</div>
       <div class="help-grid">
         <div class="help-item"><div class="hi-l">🏯 確立期（〜1651）</div><div class="hi-d">幕府心象45以上・黒字 → <strong>+5,000両</strong>。外様は改易ライン50と厳しい。</div></div>
@@ -746,34 +745,6 @@ const PRODUCT_EFFECTS = {
 };
 
 // ========================== 志（ゴール）システム ==========================
-const GOALS = [
-  { id:'kaikaku', icon:'⚙️', label:'藩政改革',
-    desc:'民心70以上・借財を石高の50%以下に保ちながら50季以上統治する。',
-    hint:(g)=>`民心${Math.floor(g.minshin)}/70　借財${Math.round(g.saikai/g.koku*100)}%/50%以下`,
-    prog:(g)=>Math.min(100,Math.round((g.turns/50)*60+(g.minshin>=70?20:0)+(g.saikai<=g.koku*.5?20:0))),
-    cond:(g)=>g.turns>=50&&g.minshin>=70&&g.saikai<=g.koku*.5 },
-  { id:'bunka', icon:'📚', label:'文化・学問の興隆',
-    desc:'蘭学80以上・威信80以上・藩校を建設して藩を学問の地とする。',
-    hint:(g)=>`蘭学${Math.floor(g.rankaku)}/80　威信${Math.floor(g.prestige)}/80　藩校${g.builtFacilities.includes('hankko')?'✓':'未'}`,
-    prog:(g)=>Math.min(100,Math.round((Math.min(g.rankaku,80)/80*40)+(Math.min(g.prestige,80)/80*30)+(g.builtFacilities.includes('hankko')?30:0))),
-    cond:(g)=>g.rankaku>=80&&g.prestige>=80&&g.builtFacilities.includes('hankko') },
-  { id:'gunji', icon:'⚔️', label:'雄藩への道',
-    desc:'軍事力80以上・洋式調練Lv2以上・石高を初期から20%以上増やす。',
-    hint:(g)=>`軍事力${Math.floor(g.military)}/80　洋式Lv${g.mil?g.mil.equipment:0}/2　石高+${Math.round((g.koku/g.dom.baseKoku-1)*100)}%/+20%`,
-    prog:(g)=>Math.min(100,Math.round((Math.min(g.military,80)/80*40)+((g.mil?Math.min(g.mil.equipment,2):0)/2*30)+(Math.min((g.koku/g.dom.baseKoku-1)/.2,1)*30))),
-    cond:(g)=>g.military>=80&&g.mil&&g.mil.equipment>=2&&g.koku>=g.dom.baseKoku*1.2 },
-  { id:'anpo', icon:'🕊️', label:'泰平の世を守る',
-    desc:'幕府関係60以上を保ちながら1868年まで藩の命脈をつなぐ。',
-    hint:(g)=>`幕府心象${Math.floor(g.bakufu)}/60　${g.year}年→1868年`,
-    prog:(g)=>Math.min(100,Math.round(((g.year-1603)/(1868-1603))*80+(g.bakufu>=60?20:0))),
-    cond:(g)=>g.year>=1868&&g.bakufu>=60 },
-  { id:'tobaku', icon:'🌅', label:'倒幕・維新の主役',
-    desc:'倒幕値を85以上に高め、幕末の大舞台で歴史の主役となる。',
-    hint:(g)=>`倒幕値${Math.floor(g.tobaku)}/85${g.year<1853?' （1853年以降本格化）':''}`,
-    prog:(g)=>Math.min(100,Math.round((Math.min(g.tobaku,85)/85)*100)),
-    cond:(g)=>g.tobaku>=85&&g.year>=1853 },
-];
-
 // ========================== 時代フェーズ ==========================
 const ERA_PHASES = [
   { id:'keicho',  label:'確立期', icon:'🏯', cls:'phase-s',
@@ -925,7 +896,16 @@ const SCENARIOS = [
       { label:'幕府心象を45以上で迎える', cond:g=>g.bakufu>=45 },
       { label:'借財を開始時以下に抑える',   cond:g=>g.saikai<=g._startSaikai },
       { label:'民心70以上の仁政を保つ',     cond:g=>g.minshin>=70 },
-    ]},
+    ],
+    threat:{
+      id:'gigi', label:'幕府の疑念', icon:'🏯', cls:'threat-gigi',
+      intro:'天下はいまだ定まらず、新参の大名は些細な落ち度も見逃されぬ。幕府の疑念が募れば、御家は容赦なく取り潰される。',
+      rise:g=>2.2 + (g.dom.type==='tozama'?2:g.dom.type==='fudai'?0.5:0) + (g.military>60?1.5:0) + (g.bakufu<40?1.5:0),
+      apply:g=>{ const lv=g.threatLevel; if(lv>=45) g.bakufu=clamp(g.bakufu-(lv-45)*0.035,0,100); }, // 疑念が幕府心象を侵食→改易へ
+      curb:{ label:'恭順の意を示す', icon:'🙇', ap:2, drop:28, moneyCost:1000,
+             desc:'幕府へ恭順を示し疑念を和らげる。疑念-28・1,000両。' },
+      crisisSeasons:4, crisisIcon:'🏯', crisisTitle:'幕府による改易',
+      crisisMsg:'幕府の疑念が頂点に達し、些細な咎を口実に改易の命が下った。御家は取り潰された。' } },
   { id:'sc_antei', icon:'🌾', title:'藩政の礎', eraId:'antei',
     startYear:1652, endYear:1664, // 48季
     challenge:'泰平の世での産業育成。藩の地力を伸ばせ。',
@@ -933,9 +913,18 @@ const SCENARIOS = [
     win:{ label:'1664年まで藩政を維持する', cond:g=>true },
     stars:[
       { label:'施設を2棟以上建設する',   cond:g=>g.builtFacilities.length>=2 },
-      { label:'石高を8%以上増やす',       cond:g=>g.koku>=g._startKoku*1.08 },
-      { label:'藩金3万両以上を蓄える',   cond:g=>g.money>=30000 },
-    ]},
+      { label:'石高を5%以上増やす',       cond:g=>g.koku>=g._startKoku*1.05 },
+      { label:'藩金2万両以上を蓄える',   cond:g=>g.money>=20000 },
+    ],
+    threat:{
+      id:'kohai', label:'新田の荒廃', icon:'🌾', cls:'threat-kohai',
+      intro:'泰平の世、藩政を怠れば田畑は荒れ、用水は詰まる。手入れを怠った新田は容赦なく荒廃していく。',
+      rise:g=>3.3 + (g.minshin<60?1.5:0),
+      apply:g=>{ const lv=g.threatLevel; if(lv>=50){ g.koku=Math.floor(g.koku*(1-(lv-50)*0.0003)); g.minshin=clamp(g.minshin-(lv-50)*0.03,0,100); } },
+      curb:{ label:'田畑の手入れ', icon:'🛠️', ap:2, drop:30, moneyCost:1500,
+             desc:'用水路を浚い田畑を整える。荒廃-30・1,500両。' },
+      crisisSeasons:4, crisisIcon:'🥀', crisisTitle:'田畑の壊滅と大飢饉',
+      crisisMsg:'荒廃した田畑はついに壊滅し、領内は大飢饉に陥った。流民が溢れ、藩は統治の体をなさなくなった。' } },
   { id:'sc_genroku', icon:'🎭', title:'元禄の華と影', eraId:'genroku',
     startYear:1688, endYear:1700, // 48季
     challenge:'好景気と浪費の誘惑。奢侈メーターを抑え込め。',
@@ -964,7 +953,9 @@ const SCENARIOS = [
       // 抑制アクション（AP建て）
       curb:{ label:'倹約を戒める', icon:'📜', ap:2, drop:30, prestigeCost:2,
              desc:'藩主自ら範を示し、奢侈の風潮を戒める。奢侈-30。だが格式を抑えるため威信が少し下がる。' },
-    }},
+      crisisSeasons:5, crisisIcon:'💸', crisisTitle:'放漫経営による財政破綻',
+      crisisMsg:'奢侈の風潮を抑えきれず、藩財政は底を突いた。藩は大坂商人に身売りし、御家の威光は地に落ちた。' },
+    },
   { id:'sc_kansei', icon:'⚖️', title:'寛政の改革', eraId:'bunsei',
     startYear:1787, endYear:1799, // 48季
     challenge:'倹約令と飢饉。借財まみれの藩を立て直せ。',
@@ -974,7 +965,16 @@ const SCENARIOS = [
       { label:'借財を開始時の半分以下に減らす', cond:g=>g.saikai<=g._startSaikai*0.5 },
       { label:'民心75以上に回復させる',         cond:g=>g.minshin>=75 },
       { label:'蘭学40以上の素地を作る',         cond:g=>g.rankaku>=40 },
-    ]},
+    ],
+    threat:{
+      id:'kikin', label:'飢饉の連鎖', icon:'🌪️', cls:'threat-kikin',
+      intro:'天明から天保へ、冷害と凶作が相次ぐ。飢饉の連鎖は民を苦しめ、放置すれば一揆となって藩を呑み込む。',
+      rise:g=>3 + (g.minshin<55?2:0) + (g.money<3000?1:0),
+      apply:g=>{ const lv=g.threatLevel; if(lv>=40) g.minshin=clamp(g.minshin-(lv-40)*0.05,0,100); if(lv>=70) g.money=Math.max(0,g.money-Math.floor((lv-70)*60)); },
+      curb:{ label:'蔵米の放出', icon:'🍚', ap:2, drop:30, moneyCost:2000,
+             desc:'藩の蔵を開いて窮民を救う。飢饉-30・2,000両。' },
+      crisisSeasons:4, crisisIcon:'🔥', crisisTitle:'大一揆による御家崩壊',
+      crisisMsg:'飢饉に追い詰められた領民が大規模な一揆を起こし、藩庁は焼かれた。幕府はこれを統治不能と断じ、改易を命じた。' } },
   { id:'sc_kurofune', icon:'📜', title:'黒船前夜', eraId:'bunsei',
     startYear:1840, endYear:1853, // 52季
     challenge:'迫る外圧。富国強兵と蘭学で備えよ。',
@@ -984,7 +984,16 @@ const SCENARIOS = [
       { label:'蘭学60以上を達成する',     cond:g=>g.rankaku>=60 },
       { label:'軍事力70以上を整える',     cond:g=>g.military>=70 },
       { label:'洋式装備Lv1以上を導入する', cond:g=>g.mil&&g.mil.equipment>=1 },
-    ]},
+    ],
+    threat:{
+      id:'joi', label:'攘夷の激化', icon:'⚔️', cls:'threat-joi',
+      intro:'異国船の出没に領内の志士は沸き立つ。攘夷の熱が高じれば、過激派が暴走し藩を内側から揺るがす。',
+      rise:g=>2.5 + (g.year>=1845?1.5:0) + (g.rankaku<30?1.5:0),
+      apply:g=>{ const lv=g.threatLevel; if(lv>=50){ g.bakufu=clamp(g.bakufu-(lv-50)*0.03,0,100); g.minshin=clamp(g.minshin-(lv-50)*0.025,0,100); } if(lv>=60) g.tobaku=clamp(g.tobaku+0.4,0,100); },
+      curb:{ label:'過激派の鎮撫', icon:'🕊️', ap:2, drop:28, moneyCost:800,
+             desc:'藩論を諭し過激派を鎮める。攘夷-28・800両。' },
+      crisisSeasons:4, crisisIcon:'🔥', crisisTitle:'藩内騒乱と幕府の制裁',
+      crisisMsg:'抑えを失った攘夷派が暴発し、異人襲撃と内訌で藩は大混乱に陥った。幕府はこれを咎め、厳しい処分を下した。' } },
   { id:'sc_ishin', icon:'🌅', title:'維新の選択', eraId:'bakumatsu',
     startYear:1853, endYear:1868, // 60季
     challenge:'倒幕か佐幕か。藩の運命を懸けた決断。',
@@ -994,7 +1003,16 @@ const SCENARIOS = [
       { label:'明確な陣営を貫く（倒幕70+ or 佐幕30-）', cond:g=>g.tobaku>=70||g.tobaku<=30 },
       { label:'軍事力70以上の精兵を擁する',            cond:g=>g.military>=70 },
       { label:'民心60以上で動乱を乗り切る',            cond:g=>g.minshin>=60 },
-    ]},
+    ],
+    threat:{
+      id:'bunretsu', label:'藩論の分裂', icon:'⚡', cls:'threat-bunretsu',
+      intro:'倒幕か佐幕か——藩論は真っ二つに割れる。態度を決めかねれば家中の対立は深まり、御家は内側から裂ける。',
+      rise:g=>2.5 + (Math.abs(g.tobaku-50)<20?2.5:0), // 旗幟不鮮明（中立）だと分裂が進む
+      apply:g=>{ const lv=g.threatLevel; if(lv>=45){ g.minshin=clamp(g.minshin-(lv-45)*0.03,0,100); g.military=clamp(g.military-(lv-45)*0.02,0,100); } },
+      curb:{ label:'藩論の統一', icon:'🤝', ap:2, drop:28, moneyCost:1000,
+             desc:'重臣を集め藩論をまとめる。分裂-28・1,000両。旗幟を鮮明にするほど抑えやすい。' },
+      crisisSeasons:4, crisisIcon:'⚔️', crisisTitle:'家中分裂による自壊',
+      crisisMsg:'佐幕派と倒幕派が藩内で武力衝突し、御家は内戦状態に陥った。維新の荒波を待たず、藩は自壊した。' } },
 ];
 
 function getScenario(id){ return SCENARIOS.find(s=>s.id===id); }
@@ -1331,14 +1349,14 @@ const SPECIAL_ACTIONS = [
     desc:'大坂商人への借財を一部返済し利息負担を軽減する。',
     cost:'3,000両', cond:g=>g.money>=3000&&g.saikai>0,
     fn:()=>{ gs.money-=3000; gs.saikai=Math.max(0,gs.saikai-10000); addEvent('good','借財返済','大坂商人への借財10000両を返済した。利息の負担が軽くなった。'); } },
-  { id:'gift',     icon:'🎁', title:'幕府への贈答',  ap:2, cd:4,
-    desc:'幕府の重臣へ贈り物をし関係を改善する。年に一度（4季CD）。秋は効果ボーナス。漆・陶磁器特産品でボーナス。',
+  { id:'gift',     icon:'🎁', title:'幕府への贈答',  ap:2, cd:3,
+    desc:'幕府の重臣へ贈り物をし関係を改善する（3季CD）。秋は効果ボーナス。漆・陶磁器特産品でボーナス。',
     cost:'3,000両', cond:g=>g.money>=3000,
     fn:()=>{
       const prods=gs.dom.products;
       let bonus=10;
-      if(prods.includes('漆'))    bonus+=5; // 漆特産: 贈答+5
-      if(prods.includes('陶磁器')) bonus+=3; // 陶磁器特産: 贈答+3
+      if(prods.includes('漆'))    bonus+=Math.round(5*prodMult('漆')); // 漆特産: 贈答+5（殖産Lvで増強）
+      if(prods.includes('陶磁器')) bonus+=Math.round(3*prodMult('陶磁器')); // 陶磁器特産: 贈答+3
       gs.money-=3000; gs.bakufu=clamp(gs.bakufu+bonus,0,100);
       const bonusNote=bonus>10?`（特産品ボーナス+${bonus-10}）`:'';
       addEvent('good','贈答工作',`幕府重臣への贈答が功を奏し、幕府との関係が改善された${bonusNote}。`);
@@ -1766,6 +1784,8 @@ function newState(domId) {
     turnEvents:[], // 今ターンで起きたイベント
     heir:true, heirAge:Math.random()<.6?rng(1,14):null,
     monopoly:false, incomeBonus:0,
+    // --- 殖産：特産品ごとのレベル（殖産アクションで育成。効果がスケール）---
+    prodLevel: Object.fromEntries(dom.products.map(p=>[p,1])),
     tobaku:50,          // 0=佐幕 ～ 100=倒幕
     kaiyakuWarned:false,// 改易通告イベント発生済み
     prevStats:{minshin:dom.startMinshin, bakufu:dom.startBakufu, money:dom.startMoney},
@@ -1793,8 +1813,6 @@ function newState(domId) {
     activeChains: [],             // [{ chainId, stepId, triggerTurn }]
     chainCooldowns: {},           // { chainId: lastTriggerTurn }
     // --- 志（ゴール）---
-    goal: null,          // 選択されたゴールID
-    goalAchieved: false, // 達成済みフラグ
     // --- 時代フェーズ ---
     eraTransitioned: {}, // { eraId: true } 移行済みフラグ
     eraBonusAP: 0,       // 文政期クリアで+1
@@ -1869,6 +1887,12 @@ function calcMaxAP() {
 
 // ========================== LOGIC ==========================
 
+// 殖産：特産品のレベルと、その効果倍率／育成費用
+function prodLv(p){ return (gs.prodLevel&&gs.prodLevel[p])||1; }
+function prodMult(p){ return 1+(Math.min(prodLv(p),5)-1)*0.5; } // 特殊効果倍率はLv5で頭打ち(最大3.0)
+function shokusanCost(p){ return 2000*prodLv(p); }   // Lv1→2=2000, 2→3=4000…（金のシンク）
+const PROD_LV_MAX=8;  // 殖産は常に余剰AP・余剰金の受け皿（フラット収入はLv8まで伸びる）
+
 function calcIncome() {
   const pol=gs.policies;
   const si=SEASON_INFO[getSeason()];
@@ -1879,19 +1903,21 @@ function calcIncome() {
   incMod+=(gs.facEffects&&gs.facEffects.incomeBonus||0);
   const kanjoR=getPostRetainer('kanjo');
   if(kanjoR) incMod+=kanjoR.sanjutsu*0.004; // 算術10で+4%
-  // 特産品効果: 砂糖は収入+20%（年貢にも乗る）
+  // 特産品効果: 砂糖は収入+20%（殖産Lvで増強。年貢にも乗る）
   const prods=gs.dom.products;
-  if(prods.includes('砂糖')) incMod+=.20;
+  if(prods.includes('砂糖')) incMod+=.20*prodMult('砂糖');
   // 田沼期（1767-1786）重商主義ボーナス
   const curEra=getCurEra();
   if(curEra&&curEra.mechanics.tanuma&&gs.year>=1767&&gs.year<=1786&&gs.policies.finance===1) incMod+=.20;
-  const base=gs.koku*0.315/4*incMod; // 季次（月次÷12×3＝÷4）
-  // 特産品収入: 基本600/品、鰹節は廻船交易×1.5で900
+  // ★大藩の逓減：30万石を超える分は年貢効率が落ちる（家臣・義務の肥大＝雪だるま抑制）
+  const effKoku=Math.min(gs.koku,300000)+Math.max(0,gs.koku-300000)*0.55;
+  const base=effKoku*0.315/4*incMod; // 季次（月次÷12×3＝÷4）
+  // 特産品収入: 基本600/品（鰹節は900）× 殖産レベル
   // 元禄期は特産品収入×1.3
   const eraProdMod=curEra?curEra.mechanics.prodMod:1.0;
   let prod=0;
   for(const p of prods){
-    prod += (p==='鰹節') ? 900 : 600;
+    prod += ((p==='鰹節') ? 900 : 600) * prodLv(p);
   }
   prod=Math.floor(prod*eraProdMod);
   // 田植え支援の秋ボーナス
@@ -1918,7 +1944,7 @@ function calcExpense() {
   const gunjiR=getPostRetainer('gunji');
   if(gunjiR) expMod-=gunjiR.buryaku*0.002; // 武略10で軍事費-2%効率
   // 特産品効果: 麻は軍事支出-5%
-  if(gs.dom.products.includes('麻')) expMod-=.05;
+  if(gs.dom.products.includes('麻')) expMod-=.05*prodMult('麻');
   // 時代固有の支出修飾子（確立期+5%・改革期+10%・元禄期+5%）
   const era4exp=getCurEra();
   if(era4exp) expMod+=era4exp.mechanics.expMod;
@@ -1979,17 +2005,28 @@ function applyThreat(){
   // 上昇
   gs.threatLevel=clamp(gs.threatLevel+(cfg.rise?cfg.rise(gs):4),0,100);
   // 影響
-  const cost=cfg.apply?cfg.apply(gs):0;
-  // 節目の通知（境界をまたいだ季のみ）
+  cfg.apply&&cfg.apply(gs);
   const lv=gs.threatLevel;
+  // 節目の通知（境界をまたいだ季のみ）
   const band=lv>=80?3:lv>=60?2:lv>=40?1:0;
   if(gs._threatBand===undefined) gs._threatBand=0;
   if(band>gs._threatBand){
-    if(band>=3) addEvent('critical',`${cfg.icon} ${cfg.label}が極限に`,`${cfg.label}が藩を激しく蝕んでいる（${Math.round(lv)}）。毎季の出費がかさみ、民心も威信も削られる。早急に「${cfg.curb.label}」で抑えよ。`);
-    else if(band>=2) addEvent('bad',`${cfg.icon} ${cfg.label}の高まり`,`${cfg.label}が高水準（${Math.round(lv)}）。浪費が藩財政を圧迫し、民の不満も募り始めた。`);
+    if(band>=3) addEvent('critical',`${cfg.icon} ${cfg.label}が極限に`,`${cfg.label}が藩を激しく蝕んでいる（${Math.round(lv)}）。このままでは御家が傾く。早急に「${cfg.curb.label}」で抑えよ。`);
+    else if(band>=2) addEvent('bad',`${cfg.icon} ${cfg.label}の高まり`,`${cfg.label}が高水準（${Math.round(lv)}）。藩政への影響が深刻になってきた。`);
     else addEvent('info',`${cfg.icon} ${cfg.label}の進行`,`${cfg.label}が${Math.round(lv)}まで上昇した。放置は禁物だ。`);
     gs._threatBand=band;
   } else if(band<gs._threatBand){ gs._threatBand=band; }
+  // ★生存の歯：メーターが極限(98+)に張り付き続けると御家が破滅する
+  if(lv>=98){
+    gs._threatStreak=(gs._threatStreak||0)+1;
+    const limit=cfg.crisisSeasons||4;
+    if(gs._threatStreak===limit-1){
+      addEvent('critical',`${cfg.icon} ${cfg.label} 限界寸前！`,`${cfg.label}がもはや手に負えない。次の一手を誤れば御家は崩壊する。`);
+    }
+    if(gs._threatStreak>=limit && !gs.gameOver){
+      showSummary(cfg.crisisIcon||'💥', cfg.crisisTitle||`${cfg.label}による崩壊`, cfg.crisisMsg||`${cfg.label}を抑えきれず、藩は内側から崩壊した。`);
+    }
+  } else { gs._threatStreak=0; }
 }
 // 脅威を抑制する（特別施策ボタンから呼ぶ）
 function curbThreat(){
@@ -2036,14 +2073,6 @@ function processTurn() {
   checkHist();
   checkKaiyaku();
   updateTobaku();
-  // 志（ゴール）達成チェック
-  if(gs.goal&&!gs.goalAchieved){
-    const goal=GOALS.find(g=>g.id===gs.goal);
-    if(goal&&goal.cond(gs)){
-      gs.goalAchieved=true;
-      addEvent('good',`🏆 志「${goal.icon}${goal.label}」達成！`,`${gs.lord.surname} ${gs.lord.given}は志を果たした。後世にその名が刻まれることだろう。`);
-    }
-  }
   gs.prevStats={minshin:gs.minshin, bakufu:gs.bakufu, money:gs.money};
   if(!pendingChoice) {
     checkGameOver();
@@ -2058,20 +2087,25 @@ function applyStats() {
   const prods=gs.dom.products;
   const domType=gs.dom.type;
 
-  // 特産品効果集計
+  // 特産品効果集計（殖産レベルでスケール）
   let prodMinshinShift=0, prodMinshinFloor=0, prodDisasterMod=0;
   for(const p of prods){
     const pe=PRODUCT_EFFECTS[p]||{};
-    if(pe.minshinShift) prodMinshinShift+=pe.minshinShift;
-    if(pe.minshinFloor) prodMinshinFloor=Math.max(prodMinshinFloor,pe.minshinFloor);
+    if(pe.minshinShift) prodMinshinShift+=pe.minshinShift*prodMult(p);
+    if(pe.minshinFloor) prodMinshinFloor=Math.max(prodMinshinFloor,pe.minshinFloor*prodMult(p));
     if(pe.disasterMod)  prodDisasterMod+=pe.disasterMod;
   }
+
+  // ★家中の路線（門閥派↔実力派）が実効果を持つ：
+  //   実力派優位＝改革が進み蘭学・軍事が伸びる／門閥派優位＝秩序が保たれ民心が安定
+  const jitsuPower=(gs.jitsuryoku-50)/50; // -1(門閥優位) 〜 +1(実力派優位)
 
   // 民心: 収束目標は通常60、醤油・納豆で+5ずつ
   const minshinTarget=60+prodMinshinShift;
   let md=(minshinTarget-gs.minshin)*.02*Q;
   if(pol.finance===0) md-=.3*Q; if(pol.finance===1) md+=.3*Q;
   if(pol.domestic===1) md+=.3*Q;
+  if(jitsuPower<0) md+=(-jitsuPower)*0.6*Q; // 門閥派優位は民心を安定させる
   for(const t of gs.lord.traits) if(t.ef.minshinD) md+=t.ef.minshinD*Q;
   const karoR=getPostRetainer('karo');
   if(karoR) md+=karoR.seiji*0.03*Q; // 政治10で+0.9/季
@@ -2101,7 +2135,8 @@ function applyStats() {
   for(const t of gs.lord.traits) if(t.ef.rankakuD) rd+=t.ef.rankakuD*Q;
   rd+=(gs.facEffects&&gs.facEffects.rankakuSpeedBonus||0)*Q;
   rd+=gs.lord.gakushiki*0.05*Q; // ★学識が蘭学成長に直接寄与
-  if(prods.includes('紙')) rd*=1.10;  // 紙特産: 蘭学成長+10%
+  if(jitsuPower>0) rd+=jitsuPower*0.8*Q; // 実力派優位は蘭学を加速
+  if(prods.includes('紙')) rd*=(1+0.10*prodMult('紙'));  // 紙特産: 蘭学成長+10%（殖産Lvで増強）
   const rankakuDecay=gs.builtFacilities&&gs.builtFacilities.includes('hankko')?1.0:2.0;
   gs.rankaku=clamp(gs.rankaku+rd-rankakuDecay,0,100);
 
@@ -2110,7 +2145,8 @@ function applyStats() {
   let mld=(pol.military===1?2.4:0.6); // 季あたりの基本増分
   for(const t of gs.lord.traits) if(t.ef.milD) mld+=t.ef.milD;
   mld+=gs.lord.command*0.08; // ★統率が軍事成長に寄与
-  if(prods.includes('馬')) mld*=1.20; // 馬特産: 軍事成長+20%
+  if(jitsuPower>0) mld+=jitsuPower*0.5; // 実力派優位は軍備改革を後押し
+  if(prods.includes('馬')) mld*=(1+0.20*prodMult('馬')); // 馬特産: 軍事成長+20%（殖産Lvで増強）
   const milDecay=1.5; // 弛緩（放置で減）
   gs.military=clamp(gs.military+mld-milDecay,0,100+(gs.facEffects&&gs.facEffects.militaryCap||0));
 
@@ -2120,8 +2156,8 @@ function applyStats() {
   if(pol.education===0) pd+=.3*Q; if(pol.shogunate===0) pd+=.5*Q;
   for(const t of gs.lord.traits) if(t.ef.prestigeD) pd+=t.ef.prestigeD*Q;
   pd+=gs.lord.culture*0.02*Q; // ★文化が威信成長に直接寄与
-  if(prods.includes('絹'))    pd+=0.5; // 絹特産: +0.5/季
-  if(prods.includes('陶磁器')) pd+=0.3; // 陶磁器: +0.3/季
+  if(prods.includes('絹'))    pd+=0.5*prodMult('絹'); // 絹特産: +0.5/季（殖産Lvで増強）
+  if(prods.includes('陶磁器')) pd+=0.3*prodMult('陶磁器'); // 陶磁器: +0.3/季（殖産Lvで増強）
   gs.prestige=clamp(gs.prestige+pd,0,100);
 
   // 門閥/実力派
@@ -3051,7 +3087,8 @@ function renderLeft(){
     <div class="frow" style="border:none"><div class="flabel">江戸距離</div><div>${gs.dom.edoDist}宿場</div></div>`;
   document.getElementById('product-list').innerHTML=gs.dom.products.map(p=>{
     const pe=PRODUCT_EFFECTS[p]||{};
-    return `<span class="pchip">${p}${gs.monopoly?'（専売）':''}<span class="prod-ef">${pe.label||''}</span></span>`;
+    const lv=prodLv(p);
+    return `<span class="pchip">${p} <span style="color:var(--wood);font-weight:bold">Lv${lv}</span>${gs.monopoly?'（専売）':''}<span class="prod-ef">${pe.label||''}</span></span>`;
   }).join('');
   document.getElementById('fac-mon').style.width=`${gs.monbatsu}%`;
   document.getElementById('fac-mv').textContent=Math.floor(gs.monbatsu);
@@ -3185,27 +3222,6 @@ function renderRight(){
     }
   }
 
-  // 志（ゴール）進捗
-  const goalSec=document.getElementById('goal-progress-section');
-  if(goalSec){
-    if(gs.goal){
-      const goal=GOALS.find(g=>g.id===gs.goal);
-      if(goal){
-        const prog=goal.prog(gs);
-        const achieved=gs.goalAchieved;
-        goalSec.style.display='';
-        goalSec.innerHTML=`<h4>◆ 志「${goal.icon} ${goal.label}」</h4>
-          <div class="goal-progress-box" style="${achieved?'border-color:var(--green);background:rgba(45,106,45,.12)':''}">
-            ${achieved?'<div style="color:var(--green);font-weight:bold;margin-bottom:.3rem">🏆 達成！</div>':''}
-            <div class="gp-bar-wrap"><div class="gp-bar" style="width:${prog}%;${achieved?'background:var(--green)':''}"></div></div>
-            <div class="gp-hint">${goal.hint(gs)}</div>
-          </div>`;
-      }
-    } else {
-      goalSec.style.display='none';
-    }
-  }
-
   const warns=[];
   if(gs.minshin<35) warns.push('⚠️ 民心低下。一揆の危険。');
   if(gs.bakufu<25) warns.push('⚠️ 幕府心象が危機的。改易の危険！');
@@ -3234,7 +3250,8 @@ function renderEvents(){
 function renderFinance(){
   const inc=calcIncome(),exp=calcExpense();
   const si=SEASON_INFO[getSeason()];
-  const base=Math.floor(gs.koku*.315/4*si.incMod);
+  const effKoku=Math.min(gs.koku,300000)+Math.max(0,gs.koku-300000)*0.55;
+  const base=Math.floor(effKoku*.315/4*si.incMod);
   const kokuPer1k=gs.koku>0?Math.floor(base/(gs.koku/1000)):0;
   // 特産品別収入内訳
   const prods=gs.dom.products;
@@ -3308,6 +3325,35 @@ function renderActions(){
       <div class="ap-bar">${pips}</div>
     </div>`;
   }
+  // 藩政投資グリッド（殖産＋小型レバー）
+  const igEl=document.getElementById('invest-grid');
+  if(igEl){
+    // 殖産カード（特産品ごと）
+    const shokuCards=gs.dom.products.map(p=>{
+      const lv=prodLv(p), maxed=lv>=PROD_LV_MAX, cost=shokusanCost(p);
+      const noAP=gs.ap!==undefined&&gs.ap<1, noMoney=gs.money<cost;
+      const ok=!maxed&&!noAP&&!noMoney;
+      const pe=PRODUCT_EFFECTS[p]||{};
+      const reason=maxed?'最大Lv':noAP?'AP不足':noMoney?`資金不足（${fmt(cost)}）`:'';
+      return `<div class="action-card${ok?'':' disabled'}" onclick="${ok?`shokusan('${p}')`:''}">
+        <div class="atitle">🌱 殖産：${p} <span style="font-size:.62rem;color:var(--wood)">Lv${lv}${maxed?'(最大)':''}</span><span style="font-size:.62rem;background:rgba(201,162,39,.18);color:var(--wood);padding:1px 5px;border-radius:3px;margin-left:.3rem">AP×1</span></div>
+        <div class="adesc">${pe.label||'特産品の生産を拡充'}。Lvで効果増。</div>
+        <div class="acost">費用: ${maxed?'—':fmt(cost)+'両'}${reason?` ／ <span style="color:var(--red)">⚠ ${reason}</span>`:''}</div>
+      </div>`;
+    }).join('');
+    // 小型レバー
+    const leverCards=INVEST_ACTIONS.map(a=>{
+      const noAP=gs.ap!==undefined&&a.ap&&gs.ap<a.ap, ok=!noAP&&a.cond(gs);
+      const reason=noAP?'AP不足':(!a.cond(gs)?`資金不足（${fmt(a.money)}）`:'');
+      return `<div class="action-card${ok?'':' disabled'}" onclick="${ok?`execInvest('${a.id}')`:''}">
+        <div class="atitle">${a.icon} ${a.title}<span style="font-size:.62rem;background:rgba(201,162,39,.18);color:var(--wood);padding:1px 5px;border-radius:3px;margin-left:.3rem">AP×${a.ap}</span></div>
+        <div class="adesc">${a.desc}</div>
+        <div class="acost">費用: ${fmt(a.money)}両${reason?` ／ <span style="color:var(--red)">⚠ ${reason}</span>`:''}</div>
+      </div>`;
+    }).join('');
+    igEl.innerHTML=shokuCards+leverCards;
+  }
+
   document.getElementById('action-grid').innerHTML=SPECIAL_ACTIONS.map(a=>{
     const cd=isOnCooldown(a.id);
     const notEnoughAP=gs.ap!==undefined&&a.ap&&gs.ap<a.ap;
@@ -3389,6 +3435,47 @@ function execAction(id){
   renderAll(); notif(`施策「${a.title}」を実行しました（AP残${gs.ap}）`);
 }
 
+// ========================== 藩政投資（AP建ての小型レバー）==========================
+// ★小型レバーは「金よりAPで律速」させるため資金コストを軽くする
+const INVEST_ACTIONS = [
+  { id:'inv_rangaku', icon:'📖', title:'蘭学奨励', ap:1, money:600,
+    desc:'学者を招き蘭学を高める（+4）。',
+    cond:g=>g.money>=600&&g.rankaku<100,
+    fn:()=>{ gs.money-=600; gs.rankaku=clamp(gs.rankaku+4,0,100); addEvent('good','蘭学奨励','学者を招き蘭学が高まった（+4）。'); } },
+  { id:'inv_mil', icon:'⚔️', title:'軍備強化', ap:1, money:700,
+    desc:'武具を整え軍事力を高める（+5）。',
+    cond:g=>g.money>=700&&g.military<100,
+    fn:()=>{ gs.money-=700; gs.military=clamp(gs.military+5,0,100); syncMilitary(); addEvent('good','軍備強化','武具を整え軍事力が高まった（+5）。'); } },
+  { id:'inv_minsei', icon:'🏞️', title:'民政巡察', ap:1, money:400,
+    desc:'領内を巡り民心を安定させる（+5）。',
+    cond:g=>g.money>=400&&g.minshin<100,
+    fn:()=>{ gs.money-=400; gs.minshin=clamp(gs.minshin+5,0,100); addEvent('good','民政巡察','藩主が領内を巡り民心が安定した（+5）。'); } },
+];
+
+// 殖産：特産品を1Lv育成（AP1＋逓増コスト＝余剰金のシンク）
+function shokusan(p){
+  if(!gs||gs.gameOver) return;
+  if(!gs.dom.products.includes(p)) return;
+  if(prodLv(p)>=PROD_LV_MAX){ notif('既に最大レベルです'); return; }
+  if(gs.ap!==undefined&&gs.ap<1){ notif('行動力が不足しています'); return; }
+  const cost=shokusanCost(p);
+  if(gs.money<cost){ notif('資金が不足しています'); return; }
+  gs.money-=cost; if(gs.ap!==undefined) gs.ap=Math.max(0,gs.ap-1);
+  gs.prodLevel[p]=prodLv(p)+1;
+  addEvent('good',`殖産：${p}`,`${p}の生産を拡充した（Lv${prodLv(p)}）。費用${fmt(cost)}を投じた。`);
+  renderAll();
+}
+
+function execInvest(id){
+  if(!gs||gs.gameOver) return;
+  const a=INVEST_ACTIONS.find(x=>x.id===id); if(!a) return;
+  if(gs.ap!==undefined&&a.ap&&gs.ap<a.ap){ notif(`行動力が不足しています（必要AP×${a.ap}）`); return; }
+  if(!a.cond(gs)){ notif('この投資は現在実行できません'); return; }
+  a.fn();
+  if(a.ap&&gs.ap!==undefined) gs.ap=Math.max(0,gs.ap-a.ap);
+  renderAll();
+}
+
 function execSeasonalAction(id){
   if(!gs||gs.gameOver) return;
   const season=getSeason();
@@ -3421,7 +3508,6 @@ function notif(text){
 
 // ========================== TITLE ==========================
 let selDomain=null;
-let selGoalId=null;       // null=志なし
 let selScenarioId='sc_keicho'; // 既定：関ヶ原の後始末。'campaign'=通し
 
 function initTitle(){
@@ -3437,13 +3523,6 @@ function initTitle(){
         <div style="margin-top:.3rem;color:#c0b090;font-size:.78rem">${d.desc}</div>
       </div>
     </div>`).join('');
-  // ゴールグリッド
-  document.getElementById('goal-grid').innerHTML=GOALS.map(g=>`
-    <button class="goal-btn" id="gb-${g.id}" onclick="selGoal('${g.id}')">
-      <div class="gi">${g.icon}</div>
-      <div class="gl">${g.label}</div>
-      <div class="gd">${g.desc}</div>
-    </button>`).join('');
   renderScenarioGrid();
 }
 
@@ -3472,17 +3551,8 @@ function selDom(id){
   selDomain=id;
   document.querySelectorAll('.domain-card').forEach(c=>c.classList.remove('sel'));
   document.getElementById(`dc-${id}`).classList.add('sel');
-  document.getElementById('goal-step').style.display='block';
   document.getElementById('era-step').style.display='block';
   document.getElementById('btn-start').disabled=false;
-  selGoalId=null;
-  document.querySelectorAll('.goal-btn').forEach(b=>b.classList.remove('sel'));
-}
-
-function selGoal(id){
-  selGoalId=(selGoalId===id)?null:id; // 再クリックで解除
-  document.querySelectorAll('.goal-btn').forEach(b=>b.classList.remove('sel'));
-  if(selGoalId) document.getElementById(`gb-${selGoalId}`)?.classList.add('sel');
 }
 
 function selScenario(id){
@@ -3494,7 +3564,6 @@ function selScenario(id){
 function startGame(){
   if(!selDomain) return;
   gs=newState(selDomain);
-  gs.goal=selGoalId||null;
   const isCampaign=(selScenarioId==='campaign');
   const sc=isCampaign?null:getScenario(selScenarioId);
 
@@ -3520,13 +3589,12 @@ function startGame(){
 
   gs.maxAP=calcMaxAP(); gs.ap=gs.maxAP;
   const traitStr=gs.lord.traits.map(t=>t.label).join('・');
-  const goalStr=gs.goal?(()=>{const g=GOALS.find(x=>x.id===gs.goal);return g?` 志：「${g.icon}${g.label}」。`:'';})():'';
   if(sc){
     addEvent('history',`${sc.icon} ${sc.title}`,`${sc.blurb}`);
     addEvent('info','勝利条件',`◆ ${sc.win.label}　／　★目標：${sc.stars.map(s=>s.label).join(' ／ ')}`);
     if(sc.threat) addEvent('bad',`${sc.threat.icon} ${sc.threat.label}の兆し`,`${sc.threat.intro}「${sc.threat.curb.label}」（AP${sc.threat.curb.ap}）で能動的に抑え込め。`);
   }
-  addEvent('history','治世の始まり',`${gs.year}年（${era(gs.year)}）春、${gs.dom.name}の藩政が始まった。藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。性格：${traitStr}。行動力：${gs.maxAP}。${goalStr}`);
+  addEvent('history','治世の始まり',`${gs.year}年（${era(gs.year)}）春、${gs.dom.name}の藩政が始まった。藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。性格：${traitStr}。行動力：${gs.maxAP}。`);
   document.getElementById('title-screen').style.display='none';
   document.getElementById('game-screen').style.display='flex';
   renderAll();
