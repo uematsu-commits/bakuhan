@@ -57,6 +57,11 @@ body{font-family:var(--ff);background:var(--ink);color:var(--ink);min-height:100
 .domain-card:hover,.domain-card.sel{background:rgba(201,162,39,.2);transform:translateY(-2px);border-color:#e8c040}
 .domain-card h3{font-size:1.2rem;color:var(--gold);margin-bottom:.4rem}
 .mon-crest{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;font-family:var(--ff);font-weight:bold;font-size:1.1rem;color:#f4ead5;border:1.5px solid rgba(244,234,213,.55);background:rgba(244,234,213,.08);flex-shrink:0}
+/* 続きから（タイトル） */
+.btn-continue{display:inline-flex;flex-direction:column;align-items:center;gap:.2rem;background:rgba(189,148,43,.15);border:1.5px solid var(--gold);border-radius:var(--r2);padding:.65rem 1.8rem;cursor:pointer;font-family:var(--ff);color:var(--paper);transition:all .15s;box-shadow:0 0 18px rgba(189,148,43,.15)}
+.btn-continue:hover{background:rgba(189,148,43,.3);transform:translateY(-1px)}
+.btn-continue .bc-label{font-size:1.05rem;font-weight:bold;color:var(--gold-light);letter-spacing:.12em}
+.btn-continue .bc-info{font-size:.72rem;color:#c0b090}
 .mon-crest.tag-shinpan{border-color:rgba(187,59,44,.7);color:#f0b5ab}
 .mon-crest.tag-fudai{border-color:rgba(58,110,165,.8);color:#a9c7e8}
 .mon-crest.tag-tozama{border-color:rgba(90,154,94,.8);color:#aed3b1}
@@ -430,6 +435,7 @@ body{font-family:var(--ff);background:var(--ink);color:var(--ink);min-height:100
 <div id="title-screen">
   <h1>幕藩</h1>
   <div class="subtitle">〜 藩経営シミュレーション 〜</div>
+  <div id="continue-step" style="display:none;margin-bottom:1.3rem"></div>
   <p style="margin-bottom:1.5rem;color:#a09080;font-size:.85rem">1603年（慶長8年）、徳川幕府の礎が築かれる。汝は何藩の主となるや？</p>
   <div class="domain-grid" id="domain-grid"></div>
   <div id="era-step">
@@ -1340,7 +1346,83 @@ const RND_EVENTS = [
       { label:'藩政を理由に固辞する', cls:'', effect:'断ったが角を立てずに済んだ。', ef:{ bakufuD:-2 } },
     ]
   },
+
+  // ===== 因果の種：トリガーイベント（選択の結果が数年後に返る）=====
+  { id:'seed_kasen', title:'川普請の伺い', text:'普請奉行より「領内の川の堤が傷んでおり、いずれ大雨に耐えられませぬ」と言上があった。本普請には大金がかかるが……。', type:'info', w:10, cond:g=>!(g.seedFlags&&g.seedFlags.kasen),
+    choices:[
+      { label:'本普請で堤を築き直す（2,500両）', cls:'c-good', effect:'堅牢な堤が完成した。数年のうちに真価が問われよう。', ef:{ moneyD:-2500 }, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).kasen=1; plantSeed('kasen_good',10); } },
+      { label:'応急の補修に留める（800両）', cls:'c-warn', effect:'ひとまず土嚢を積んだ。次の大雨まで持てばよいが……。', ef:{ moneyD:-800 }, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).kasen=1; plantSeed('kasen_mid',10); } },
+      { label:'今は見送る', cls:'c-danger', effect:'財政を優先し、堤の修繕は先送りとなった。', ef:{}, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).kasen=1; plantSeed('kasen_bad',8); } },
+    ]
+  },
+  { id:'seed_rangakusha', title:'蘭学者の亡命', text:'幕府に睨まれた高名な蘭学者が、ひそかに藩の庇護を求めてきた。匿えば学問は栄えるが、幕府に知れれば只では済まぬ。', type:'info', w:9, cond:g=>!(g.seedFlags&&g.seedFlags.rangakusha)&&(g.year>=1720||g.rankaku>=10),
+    choices:[
+      { label:'ひそかに匿い藩校で登用する', cls:'c-warn', effect:'学者は感涙し、藩の蘭学が大きく進んだ。だが幕府の目がいつか届くやもしれぬ。', ef:{ rankakuD:8 }, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).rangakusha=1; plantSeed('rangaku_giin',12); } },
+      { label:'関わりを避け丁重に断る', cls:'', effect:'得難い学者は失ったが、藩は安泰である。', ef:{}, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).rangakusha=1; plantSeed('rangaku_meisei',12); } },
+    ]
+  },
+  { id:'seed_kakushida', title:'隠し田の発見', text:'検地の際、帳簿に載らぬ隠し田が見つかった。黙認すれば年貢外の実入りになるが、幕府に知れれば咎めは免れぬ。', type:'info', w:9, cond:g=>!(g.seedFlags&&g.seedFlags.kakushida),
+    choices:[
+      { label:'黙認し裏の実入りとする（+2,000両）', cls:'c-danger', effect:'帳簿の外の実入りを得た。誰にも知られなければ、だが。', ef:{ moneyD:2000 }, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).kakushida=1; plantSeed('kakushida_bare',12); } },
+      { label:'正しく帳簿に載せ幕府に届け出る', cls:'c-good', effect:'石高が正式に増え、幕府は藩の正直を賞した。', ef:{ kokuMod:0.015, bakufuD:3 }, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).kakushida=1; } },
+    ]
+  },
+  { id:'seed_sanrin', title:'山林の伐採権', text:'上方の材木商が「藩の山を伐らせてほしい」と大金を積んできた。山を売れば今は潤うが、裸の山は水を蓄えぬ。', type:'info', w:9, cond:g=>!(g.seedFlags&&g.seedFlags.sanrin),
+    choices:[
+      { label:'伐採権を売る（+3,000両）', cls:'c-danger', effect:'山は瞬く間に伐り尽くされた。金蔵は潤ったが……。', ef:{ moneyD:3000 }, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).sanrin=1; plantSeed('sanrin_dosha',12); } },
+      { label:'断り、植林に投資する（1,000両）', cls:'c-good', effect:'山に苗木を植えた。育つまで時はかかるが、山は藩の宝である。', ef:{ moneyD:-1000 }, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).sanrin=1; plantSeed('sanrin_mori',14); } },
+    ]
+  },
+  { id:'seed_gosho', title:'豪商の申し出', text:'上方の豪商が「藩の御用達にしていただければ、当座の金子はいくらでも」と擦り寄ってきた。甘い話には裏があるものだが。', type:'info', w:9, cond:g=>!(g.seedFlags&&g.seedFlags.gosho),
+    choices:[
+      { label:'御用達とし上納金を受ける（+4,000両）', cls:'c-danger', effect:'豪商は御用達の看板を得て、藩は大金を得た。持ちつ持たれつ、か。', ef:{ moneyD:4000 }, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).gosho=1; plantSeed('gosho_yami',12); } },
+      { label:'癒着を嫌い、きっぱり断る', cls:'c-good', effect:'金は惜しいが、藩の清廉は保たれた。', ef:{ prestigeD:3 }, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).gosho=1; } },
+    ]
+  },
+  { id:'seed_ronin', title:'食い詰め浪士の一団', text:'主家を失った浪士十数名が「いかなる働きもいたす」と仕官を求めてきた。腕は立つようだが、素性は知れない。', type:'info', w:9, cond:g=>!(g.seedFlags&&g.seedFlags.ronin)&&g.military<80,
+    choices:[
+      { label:'召し抱える（1,500両・軍事+6）', cls:'c-warn', effect:'浪士たちは藩兵に加わった。腕は確かだが、目つきの荒い者もいる。', ef:{ moneyD:-1500, military:6 }, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).ronin=1; plantSeed('ronin_mondai',10); } },
+      { label:'関わりを避け追い返す', cls:'', effect:'浪士たちは恨めしげに去っていった。', ef:{}, postFn:()=>{ (gs.seedFlags=gs.seedFlags||{}).ronin=1; plantSeed('ronin_ikki',12); } },
+    ]
+  },
+
 ];
+
+// ========================== 極値カウンター（一点全振り戦略への揺り戻し） ==========================
+// ランダム抽選ではなく毎季チェック：条件成立中は30%/季で必ず圧がかかる。
+const EXTREME_EVENTS=[
+  { id:'goyokin', title:'幕府御用金の下命', cond:g=>g.money>=35000,
+    text:'藩の金蔵が潤沢だという噂が江戸に届き、幕府から御用金（上納金）の下命があった。豊かさは目をつけられる。',
+    choices:[
+      { label:'快く納める（藩金の25%）', cls:'c-good', effect:'気前の良い上納に幕府は満足した。', ef:{ bakufuD:6 }, postFn:()=>{ const levy=Math.floor(gs.money*0.25); gs.money-=levy; (gs.evCd=gs.evCd||{}).goyokin=curTurnN()+10; addEvent('info','御用金上納',`${fmt(levy)}を上納した。`); } },
+      { label:'窮状を訴え減額を嘆願する（10%）', cls:'c-warn', effect:'減額は認められたが、幕府は「思ったより渋い藩だ」と冷ややかである。', ef:{ bakufuD:-4 }, postFn:()=>{ const levy=Math.floor(gs.money*0.10); gs.money-=levy; (gs.evCd=gs.evCd||{}).goyokin=curTurnN()+10; addEvent('info','御用金上納（減額）',`${fmt(levy)}を上納した。`); } },
+    ]
+  },
+  { id:'netami', title:'幕閣の妬み', cond:g=>g.prestige>=88,
+    text:'藩の威信が高まりすぎ、「あの藩は増長しておる」と幕閣で妬み混じりの噂が立っている。出る杭は打たれるのが世の常。',
+    choices:[
+      { label:'重臣たちへ進物を贈り宥める（6,000両）', cls:'c-warn', effect:'進物が効いて、噂はいつしか立ち消えた。', ef:{ moneyD:-6000 }, postFn:()=>{ (gs.evCd=gs.evCd||{}).netami=curTurnN()+10; } },
+      { label:'敢えて格式を抑え、慎み深く振る舞う', cls:'', effect:'藩の威信は下がったが、幕府の警戒は解けた。', ef:{ prestigeD:-8, bakufuD:3 }, postFn:()=>{ (gs.evCd=gs.evCd||{}).netami=curTurnN()+10; } },
+      { label:'意に介さない', cls:'c-danger', effect:'噂は幕閣の上層まで届き、藩への風当たりが強くなった。', ef:{ bakufuD:-7 }, postFn:()=>{ (gs.evCd=gs.evCd||{}).netami=curTurnN()+10; } },
+    ]
+  },
+  { id:'rumin', title:'流民の殺到', cond:g=>g.minshin>=88,
+    text:'「あの藩は民に優しい」という評判が広まり、近隣諸国から流民が続々と領内へ押し寄せている。養う米も住まわせる土地も限りがある。',
+    choices:[
+      { label:'受け入れ、新田開発に充てる（3,500両）', cls:'c-good', effect:'流民は開墾の働き手となり、石高がわずかに増えた。', ef:{ moneyD:-3500, kokuMod:0.01 }, postFn:()=>{ (gs.evCd=gs.evCd||{}).rumin=curTurnN()+10; } },
+      { label:'国境で追い返す', cls:'c-danger', effect:'冷たい仕打ちに、領民の間にも「明日は我が身か」と失望が広がった。', ef:{ minshinD:-9 }, postFn:()=>{ (gs.evCd=gs.evCd||{}).rumin=curTurnN()+10; } },
+      { label:'幕府に処置を相談する', cls:'', effect:'幕府の指示で近隣諸藩に分散させたが、手間取るうちに民の不満も少し募った。', ef:{ bakufuD:2, minshinD:-4, moneyD:-1000 }, postFn:()=>{ (gs.evCd=gs.evCd||{}).rumin=curTurnN()+10; } },
+    ]
+  },
+];
+function checkExtremes(){
+  if(pendingChoice) return;
+  for(const e of EXTREME_EVENTS){
+    if(!e.cond(gs)) continue;
+    if(gs.evCd&&gs.evCd[e.id]>curTurnN()) continue;
+    if(Math.random()<0.30){ showChoice(e.title,e.text,e.choices); return; } // 1季1件
+  }
+}
 
 // ========================== RETAINER DATA ==========================
 const POST_INFO = {
@@ -1896,6 +1978,10 @@ function newState(domId) {
     scenarioDone: false, // 完了済みフラグ
     threatLevel: -1,     // 脅威メーター（-1=脅威なし, 0〜100）
     threatId: null,      // 脅威の種別ID
+    // --- 因果の種（数年後に返る選択）---
+    seeds: [],           // [{id, due(curTurnN), data}]
+    seedFlags: {},       // トリガーイベントの発火済みフラグ
+    evCd: {},            // 極値カウンターイベントのクールダウン
     _startSaikai: dom.startSaikai, // 星評価用の開始時借財（startGameで上書き）
     _startKoku: dom.baseKoku,      // 星評価用の開始時石高
     events:[], usedHist:new Set(), turns:0, gameOver:false,
@@ -2064,6 +2150,8 @@ function advanceSeason() {
   gs.maxAP=calcMaxAP();
   gs.ap=gs.maxAP;
   gs.turns++;
+  // ★毎ターン終了時に自動保存
+  saveGame();
 }
 
 // ========================== 脅威メーター ==========================
@@ -2115,6 +2203,78 @@ function curbThreat(){
   renderAll();
 }
 
+// ========================== 因果の種（数年後に返る選択） ==========================
+// トリガーイベントの選択が「種」を植え、数年後（8〜14季）に結果が返ってくる。
+function plantSeed(id,delaySeasons,data){ (gs.seeds=gs.seeds||[]).push({id,due:curTurnN()+delaySeasons,data:data||{}}); }
+function processSeeds(){
+  if(!gs.seeds||!gs.seeds.length||pendingChoice) return;
+  const now=curTurnN();
+  const idx=gs.seeds.findIndex(s=>s.due<=now);
+  if(idx<0) return;
+  const s=gs.seeds.splice(idx,1)[0]; // 1ターン1件
+  const fn=SEED_RESULTS[s.id];
+  if(fn) fn(s.data);
+}
+const SEED_RESULTS={
+  // --- 河川普請 ---
+  kasen_bad:()=>{
+    const soft=gs.builtFacilities&&gs.builtFacilities.includes('chisui');
+    if(soft){
+      applyEf({kokuMod:-0.02,minshinD:-4,moneyD:-1200});
+      addEvent('bad','【因果】大洪水 — 治水が藩を救う','数年前に見送った堤がついに破れ、川が氾濫した。だが治水工事の備えが被害を大きく食い止めた。');
+    } else {
+      applyEf({kokuMod:-0.06,minshinD:-10,moneyD:-3000});
+      addEvent('critical','【因果】大洪水 — あの時直していれば','数年前に修繕を見送った堤が大雨で決壊し、田畑が濁流に呑まれた。領民は「殿が堤を惜しんだせいだ」と囁いている。');
+    }
+  },
+  kasen_mid:()=>{ applyEf({kokuMod:-0.02,minshinD:-4,moneyD:-1000}); addEvent('bad','【因果】洪水 — 応急の堤が耐えきれず','応急処置の堤は大雨に半ばまで耐えたが、一部が崩れて田畑に水が入った。本普請ならば防げたであろう。'); },
+  kasen_good:()=>{ applyEf({minshinD:6,prestigeD:3}); addEvent('good','【因果】堤、大雨を退ける','大雨で川が増水したが、数年前に普請した堤は微動だにしなかった。領民は殿の先見を讃えている。'); },
+  // --- 蘭学者の庇護 ---
+  rangaku_giin:()=>{
+    showChoice('【因果】幕府の詮議 — 匿った蘭学者','数年前に匿った蘭学者の所在を幕府が嗅ぎつけた。詮議の使者が藩邸に来ている。',[
+      {label:'あくまで隠し通す',cls:'c-danger',effect:'幕府の心証は悪化したが、学者は藩校で多くの弟子を育てた。',ef:{bakufuD:-8,rankakuD:6}},
+      {label:'学者を引き渡す',cls:'',effect:'幕府は満足したが、藩の蘭学は指導者を失い、民は薄情な藩主と噂した。',ef:{bakufuD:4,rankakuD:-6,minshinD:-4}},
+      {label:'進物で使者を懐柔する（3,000両）',cls:'c-warn',effect:'使者は進物を受け取り「何も見なかった」と帰っていった。',ef:{moneyD:-3000,rankakuD:3}},
+    ]);
+  },
+  rangaku_meisei:()=>{ applyEf({prestigeD:-4,rankakuD:-2}); addEvent('bad','【因果】あの蘭学者、他藩で大成','数年前に追い返した蘭学者が隣藩の庇護を受け、天下に名を馳せているという。惜しい人物を逃したと家中は囁く。'); },
+  // --- 隠し田 ---
+  kakushida_bare:()=>{
+    applyEf({bakufuD:-10,moneyD:-2500});
+    addEvent('critical','【因果】隠し田、幕府に露見','数年前に黙認した隠し田が幕府隠密の知るところとなった。年貢の追徴と厳しい叱責を受け、幕府の心証が大きく損なわれた。');
+  },
+  // --- 山林 ---
+  sanrin_dosha:()=>{ applyEf({kokuMod:-0.03,minshinD:-8,moneyD:-2000}); addEvent('critical','【因果】土砂崩れ — 乱伐の報い','数年前に伐り尽くした山が大雨で崩れ、麓の村を土砂が襲った。山を売った代金は、失った物の足しにもならぬ。'); },
+  sanrin_mori:()=>{ applyEf({moneyD:2500,minshinD:4}); addEvent('good','【因果】植えた山、藩を潤す','数年前に植林した山が見事に育ち、間伐材が高値で売れた。山を守った判断が実を結んだ。'); },
+  // --- 豪商の癒着 ---
+  gosho_yami:()=>{
+    showChoice('【因果】御用商人との癒着、表沙汰に','数年前に御用達とした豪商が、藩の名を笠に着て阿漕な商いをしていたことが発覚した。領民の怒りが藩にも向いている。',[
+      {label:'豪商を断罪し縁を切る',cls:'c-good',effect:'毅然とした処断で民心はやや回復したが、豪商からの上納は途絶えた。',ef:{minshinD:3,moneyD:-2000,prestigeD:-2}},
+      {label:'商人を庇い立てする',cls:'c-danger',effect:'金づるは守ったが、「殿も同じ穴の狢」と領民の信を大きく失った。',ef:{minshinD:-10,moneyD:1500}},
+    ]);
+  },
+  // --- 浪士の一団 ---
+  ronin_mondai:()=>{
+    showChoice('【因果】召し抱えた浪士の乱行','数年前に召し抱えた浪士たちが城下で酒に酔い、町人と刃傷沙汰を起こした。',[
+      {label:'首謀者を厳しく処断する',cls:'c-good',effect:'厳正な処分に町人たちは安堵したが、浪士組の士気は落ちた。',ef:{minshinD:4,military:-4}},
+      {label:'内々に済ませ浪士を庇う',cls:'c-danger',effect:'兵力は保ったが、「侍ばかり贔屓する」と民の不満が募った。',ef:{minshinD:-7}},
+    ]);
+  },
+  ronin_ikki:()=>{ applyEf({moneyD:-2000,minshinD:-5}); addEvent('bad','【因果】追い返した浪士、野盗に','数年前に追い払った浪士たちが食い詰めて野盗と化し、領内の街道を荒らしている。討伐の出費もかさむ。'); },
+};
+
+// ========================== 家臣の引き抜き（忠誠低下の代償） ==========================
+function maybePoachRetainer(){
+  if(pendingChoice||!gs.retainers||!gs.retainers.length) return;
+  const target=gs.retainers.find(r=>r.loyalty<=45&&(r.seiji+r.sanjutsu+r.buryaku+r.gaiko)>=24&&!r.defecting);
+  if(!target||Math.random()>=0.10) return;
+  const postNote=target.post?`現在${POST_INFO[target.post].label}の任にある。`:'';
+  showChoice('家臣の引き抜き',`${target.name}に他藩から破格の条件で仕官の誘いが届いているという。${postNote}忠誠は${Math.round(target.loyalty)}まで下がっている。`,[
+    {label:'加増して引き留める（1,500両）',cls:'c-good',effect:'恩義に感じ入り、忠誠が大きく回復した。',ef:{moneyD:-1500},postFn:()=>{target.loyalty=clamp(target.loyalty+35,0,100);}},
+    {label:'快く送り出す',cls:'',effect:'去る者は追わず。だが有能な家臣を失い、家中に動揺が走った。',ef:{prestigeD:-2},postFn:()=>{gs.retainers=gs.retainers.filter(x=>x.id!==target.id);}},
+  ]);
+}
+
 function processTurn() {
   if(!gs||gs.gameOver||pendingChoice) return;
   gs.turnEvents=[];  // 今ターンのイベントをリセット
@@ -2134,6 +2294,9 @@ function processTurn() {
   applyRetainerLoyalty();
   if(!pendingChoice) updateFactions();
   processChains();
+  if(!pendingChoice) processSeeds();        // 因果の種：数年前の選択が返ってくる
+  if(!pendingChoice) maybePoachRetainer();  // 忠誠低下家臣の引き抜き
+  if(!pendingChoice) checkExtremes();       // 極値カウンター（全振り戦略への揺り戻し）
   if(!pendingChoice) {
     // 時代ごとの天下普請（確立期が最多）
     const fChance=eraM?eraM.fusinChance:0;
@@ -2474,6 +2637,7 @@ function triggerFactionEvent(faction,tension){
 function applyRetainerLoyalty(){
   if(!gs.retainers||!gs.retainers.length) return;
   const pol=gs.policies;
+  const grown=[]; // 今年成長した家臣（冬にまとめて通知）
   for(const r of gs.retainers){
     // 派閥と政策の整合性チェック（季次×3換算）
     const conflict=isFactionConflict(r.faction, pol);
@@ -2481,9 +2645,14 @@ function applyRetainerLoyalty(){
     // 高能力で役職なしの家臣は不満が溜まりやすい
     const cap=r.seiji+r.sanjutsu+r.buryaku+r.gaiko;
     if(!r.post&&cap>=28) r.loyalty=clamp(r.loyalty-3,0,100);
-    // 年齢は冬（month=10 = 年末の最後の季）にインクリメント
+    // 年齢・成長は冬（month=10 = 年末の最後の季）に処理
     if(gs.month===10){
       r.age++;
+      // ★成長：役職に就いている家臣は職務を通じて担当能力が伸びる（上限10）
+      if(r.post){
+        const st=POST_INFO[r.post].stat;
+        if(r[st]<10){ r[st]++; grown.push(`${r.name}（${POST_INFO[r.post].label}・${{seiji:'政治',sanjutsu:'算術',buryaku:'武略',gaiko:'外交'}[st]}${r[st]}）`); }
+      }
       // 高齢退任（65歳以上で年20%の確率）
       if(r.age>=65&&Math.random()<0.20){
         const roleNote=r.post?`${POST_INFO[r.post].label}の職が空く。`:'';
@@ -2493,16 +2662,24 @@ function applyRetainerLoyalty(){
         return;
       }
     }
-    // 忠誠度が極端に低い場合 → 離反イベント
-    if(r.loyalty<=5&&!r.defecting){
+    // ★忠誠低下の警告（一度だけ）— 放置すれば引き抜き・出奔につながる
+    if(r.loyalty<=30&&!r.loyWarned){
+      r.loyWarned=true;
+      addEvent('bad','家臣の不満',`${r.name}の忠誠が${Math.round(r.loyalty)}まで下がっている。役職への登用・慰労の宴・政策の見直しで応えねば、他藩への出奔もあり得る。`);
+    }
+    if(r.loyalty>50) r.loyWarned=false; // 回復したら警告リセット
+    // ★忠誠が尽きたら出奔（閾値5→12に引き上げ、放置の代償を重く）
+    if(r.loyalty<=12&&!r.defecting){
       r.defecting=true;
-      addEvent('critical','家臣の離反',
-        `${r.name}の不満が限界に達し、召し放ちを申し出てきた。${r.post?`${POST_INFO[r.post].label}の職が空く。`:''}`);
-      r.post=null; // 役職を外す
-      gs.retainers=gs.retainers.filter(x=>x.id!==r.id); // 離反で退出
+      addEvent('critical','家臣の出奔',
+        `${r.name}が夜陰に紛れて藩を出奔した。${r.post?`${POST_INFO[r.post].label}の職が空く。`:''}忠誠を蔑ろにした代償である。`);
+      r.post=null;
+      gs.retainers=gs.retainers.filter(x=>x.id!==r.id);
+      gs.prestige=clamp(gs.prestige-2,0,100);
       return; // 1ターン1件
     }
   }
+  if(grown.length) addEvent('good','家臣の成長',`職務を通じて家臣が腕を上げた：${grown.join('、')}`);
 }
 
 // ========================== イベントチェーン処理 ==========================
@@ -2906,6 +3083,7 @@ function trend(cur, prev, threshold=2) {
 // ゲームエンドサマリー表示
 function showSummary(icon, title, desc) {
   gs.gameOver=true;
+  clearSave(); // ゲームオーバー時はセーブを消去
   document.getElementById('go-modal').style.display='none';
   const startY=gs.scenario?(getScenario(gs.scenario).startYear):1603;
   const yearsRuled=gs.year-startY+(gs.month>1?1:0);
@@ -2947,6 +3125,7 @@ function showSummary(icon, title, desc) {
 // シナリオ完了画面（星評価つき）
 function showScenarioResult(sc, winOk, starCount, stars){
   gs.gameOver=true;
+  clearSave(); // クリア時はセーブを消去
   document.getElementById('go-modal').style.display='none';
   saveScenarioStars(sc.id, starCount);
   const best=getScenarioStars(sc.id);
@@ -3091,6 +3270,43 @@ function addEvent(type,title,text){
   if(gs.events.length>50) gs.events.pop();
   // 1ターン後にisNewを消す
   setTimeout(()=>{ ev.isNew=false; },100);
+}
+
+// ========================== セーブ／ロード ==========================
+// 毎ターン終了時に自動保存。星記録（bakuhan_stars）とは別キーで互換を維持する。
+const SAVE_KEY='bakuhan_save';
+function saveGame(){
+  if(!gs||gs.gameOver) return;
+  try{
+    const o=Object.assign({},gs,{ usedHist:[...gs.usedHist], dom:{id:gs.dom.id}, turnEvents:[] });
+    localStorage.setItem(SAVE_KEY,JSON.stringify(o));
+  }catch(e){}
+}
+function clearSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+function peekSave(){ try{ const r=localStorage.getItem(SAVE_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
+function continueGame(){
+  const o=peekSave(); if(!o||o.gameOver) return;
+  o.usedHist=new Set(o.usedHist||[]);
+  o.dom=DOMAINS.find(d=>d.id===(o.dom&&o.dom.id))||DOMAINS[0];
+  // 旧セーブとの前方互換ガード
+  o.seeds=o.seeds||[]; o.seedFlags=o.seedFlags||{}; o.evCd=o.evCd||{}; o.turnEvents=[];
+  gs=o; pendingChoice=null;
+  document.getElementById('title-screen').style.display='none';
+  document.getElementById('game-screen').style.display='flex';
+  addEvent('info','藩政を再開',`${gs.year}年（${era(gs.year)}）— 保存されていた藩政を再開した。`);
+  renderAll();
+}
+function renderContinue(){
+  const el=document.getElementById('continue-step'); if(!el) return;
+  const o=peekSave();
+  if(!o||o.gameOver){ el.style.display='none'; el.innerHTML=''; return; }
+  const scT=o.scenario?((getScenario(o.scenario)||{}).title||''):'通しモード';
+  const d=DOMAINS.find(x=>x.id===(o.dom&&o.dom.id));
+  el.style.display='block';
+  el.innerHTML=`<button class="btn-continue" onclick="continueGame()">
+    <span class="bc-label">▶ 続きから</span>
+    <span class="bc-info">${d?d.name:'—'}・${o.year}年（${era(o.year)}）・${scT}・統治${o.turns}季目</span>
+  </button>`;
 }
 
 // ========================== HELPERS ==========================
@@ -3636,6 +3852,7 @@ function initTitle(){
       </div>
     </div>`).join('');
   renderScenarioGrid();
+  renderContinue();
 }
 
 function renderScenarioGrid(){
@@ -3709,6 +3926,7 @@ function startGame(){
   addEvent('history','治世の始まり',`${gs.year}年（${era(gs.year)}）春、${gs.dom.name}の藩政が始まった。藩主${gs.lord.surname} ${gs.lord.given}（${gs.lord.age}歳）が治世の幕を開ける。性格：${traitStr}。行動力：${gs.maxAP}。`);
   document.getElementById('title-screen').style.display='none';
   document.getElementById('game-screen').style.display='flex';
+  saveGame(); // 開幕直後から再開可能に
   renderAll();
 }
 
