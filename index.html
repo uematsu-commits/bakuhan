@@ -407,6 +407,49 @@ body{font-family:var(--ff);background:var(--ink);color:var(--ink);min-height:100
 ::-webkit-scrollbar-track{background:var(--paper-dark)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
+/* ========== A. 季節環境テーマ ========== */
+:root{--sacc:var(--gold)}
+#game-screen[data-season="spring"]{--paper:#f3e7d6;--sacc:#b8607a}
+#game-screen[data-season="summer"]{--paper:#eee9cd;--sacc:#3a7d44}
+#game-screen[data-season="autumn"]{--paper:#f2e2c2;--sacc:#c07a2a}
+#game-screen[data-season="winter"]{--paper:#ece7db;--sacc:#4a6a8f}
+.year-progress-bar{background:var(--sacc)!important}
+/* 季節めくり（ターン送り演出） */
+#season-wipe{position:fixed;inset:0;z-index:400;pointer-events:none;display:flex;align-items:center;justify-content:center;opacity:0;background:radial-gradient(circle at center,rgba(241,230,205,.94) 0%,rgba(241,230,205,.55) 45%,rgba(241,230,205,0) 75%)}
+#season-wipe.on{animation:swipeK .85s ease}
+#season-wipe .sw-k{font-size:7.5rem;font-weight:bold;color:var(--sacc,#bd942b);font-family:var(--ff);letter-spacing:.05em;text-shadow:0 2px 18px rgba(36,25,16,.25)}
+@keyframes swipeK{0%{opacity:0}25%{opacity:1}65%{opacity:1}100%{opacity:0}}
+/* 季節パーティクル（春の花びら・冬の雪） */
+#season-fx{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
+#season-fx .petal{position:absolute;top:-24px;width:11px;height:8px;border-radius:62% 38% 60% 40%;background:rgba(206,126,148,.5);animation:fallSway linear infinite}
+#season-fx .snow{position:absolute;top:-12px;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 0 3px rgba(255,255,255,.5);animation:fallDown linear infinite}
+@keyframes fallSway{0%{transform:translate(0,-4vh) rotate(0deg)}100%{transform:translate(7vw,106vh) rotate(320deg)}}
+@keyframes fallDown{to{transform:translateY(108vh)}}
+/* ========== B. 家紋SVG ========== */
+.mon-crest svg{width:64%;height:64%;display:block}
+.lport svg{width:58%;height:58%;display:block}
+/* ========== C. 大事件の格付け ========== */
+.ev-major{padding:1rem .95rem .95rem;position:relative;overflow:hidden;border-left-width:5px;box-shadow:var(--shadow)}
+.ev-major .etitle{font-size:1.02rem;letter-spacing:.02em}
+.ev-major .etext{font-size:.86rem;line-height:1.7}
+.ev-major::before{content:attr(data-wm);position:absolute;right:.2rem;top:-1.3rem;font-size:5.4rem;font-family:var(--ff);font-weight:bold;color:rgba(36,25,16,.07);pointer-events:none;line-height:1;user-select:none}
+.ev-seal{position:absolute;right:.65rem;bottom:.6rem;width:1.75rem;height:1.75rem;border:2px solid rgba(187,59,44,.6);color:rgba(187,59,44,.75);display:flex;align-items:center;justify-content:center;font-size:.95rem;font-weight:bold;transform:rotate(-8deg);border-radius:3px;font-family:var(--ff);user-select:none}
+/* 急報リボン＋モーダル開帳アニメ */
+.choice-box{position:relative;animation:cbIn .32s cubic-bezier(.2,.9,.3,1.15)}
+@keyframes cbIn{0%{transform:scale(.94) translateY(14px);opacity:0}100%{transform:scale(1) translateY(0);opacity:1}}
+.cm-ribbon{display:none;position:absolute;top:-.9rem;left:50%;transform:translateX(-50%) rotate(-2deg);background:linear-gradient(180deg,#cf4636,#9a2c1f);color:#fff;font-weight:bold;letter-spacing:.4em;padding:.28rem 1.1rem .28rem 1.5rem;border-radius:3px;font-size:.85rem;font-family:var(--ff);box-shadow:0 3px 10px rgba(154,44,31,.5)}
+.choice-box.urgent .cm-ribbon{display:block}
+.choice-box.urgent{box-shadow:var(--shadow-lg),0 0 0 4px rgba(187,59,44,.22),inset 0 0 0 4px rgba(187,59,44,.14)}
+/* 危機ビネット（脅威80以上で画面の縁が朱に染まる） */
+#danger-vignette{position:fixed;inset:0;pointer-events:none;z-index:90;opacity:0;transition:opacity .9s;box-shadow:inset 0 0 130px 34px rgba(154,30,20,.34)}
+#danger-vignette.on{opacity:1;animation:dvPulse 2.4s ease-in-out infinite}
+@keyframes dvPulse{50%{box-shadow:inset 0 0 160px 50px rgba(154,30,20,.46)}}
+/* ========== D. 治世の絵巻グラフ ========== */
+.emaki-wrap{margin:.9rem 0 .3rem}
+.emaki-title{font-size:.78rem;color:var(--ink-light);margin-bottom:.35rem;letter-spacing:.04em;text-align:center}
+.emaki-wrap svg{display:block;width:100%;height:auto}
+.emaki-legend{display:flex;justify-content:center;gap:1.1rem;font-size:.72rem;margin-top:.3rem;font-weight:bold}
+
 @media(max-width:1100px){
   #game-main{grid-template-columns:210px 1fr 240px}
 }
@@ -449,6 +492,9 @@ body{font-family:var(--ff);background:var(--ink);color:var(--ink);min-height:100
 
 <!-- GAME SCREEN -->
 <div id="game-screen">
+  <div id="season-fx"></div>
+  <div id="danger-vignette"></div>
+  <div id="season-wipe"><span class="sw-k"></span></div>
   <div id="game-header">
     <div class="gtitle">幕藩</div>
     <div class="gdate" id="h-date">-</div>
@@ -723,6 +769,7 @@ body{font-family:var(--ff);background:var(--ink);color:var(--ink);min-height:100
     <h2 id="sum-title">統治の記録</h2>
     <p id="sum-desc" style="text-align:center;font-size:.85rem;color:var(--ink-light);margin-bottom:1rem;line-height:1.7"></p>
     <div class="summary-grid" id="sum-grid"></div>
+    <div id="sum-chart"></div>
     <div class="summary-achiev">
       <h4>◆ 功績・記録</h4>
       <div id="sum-achievs"></div>
@@ -759,7 +806,8 @@ body{font-family:var(--ff);background:var(--ink);color:var(--ink);min-height:100
 
 <!-- CHOICE MODAL -->
 <div id="choice-modal">
-  <div class="choice-box">
+  <div class="choice-box" id="cm-box">
+    <div class="cm-ribbon">急報</div>
     <h3 id="cm-title">決断を迫られる</h3>
     <div class="ctext" id="cm-text">-</div>
     <div class="choice-list" id="cm-choices"></div>
@@ -2152,6 +2200,8 @@ function advanceSeason() {
   gs.turns++;
   // ★毎ターン終了時に自動保存
   saveGame();
+  // 季節めくり演出
+  showSeasonWipe();
 }
 
 // ========================== 脅威メーター ==========================
@@ -2494,6 +2544,9 @@ function showChoice(title, text, choices) {
     !c.traitReq || (gs && gs.lord && gs.lord.traits.some(t => t.key === c.traitReq))
   );
   pendingChoice = filtered;
+  // 緊急案件には朱の「急報」リボンを掲げる
+  const urgent=/【因果】|改易|危機|限界|一揆|存続|急|鳥羽|出奔|離反/.test(title);
+  setCls(document.getElementById('cm-box'),'urgent',urgent);
   document.getElementById('cm-title').textContent = title;
   document.getElementById('cm-text').textContent = text;
   document.getElementById('cm-choices').innerHTML = filtered.map((c,i)=>{
@@ -3119,6 +3172,7 @@ function showSummary(icon, title, desc) {
   document.getElementById('sum-achievs').innerHTML=achievs.length===0
     ?'<span style="color:var(--ink-light);font-size:.8rem">特記事項なし</span>'
     :achievs.map(a=>`<span class="achiev-chip${a.g?'':' bad'}">${a.t}</span>`).join('');
+  const chEl=document.getElementById('sum-chart'); if(chEl) chEl.innerHTML=emakiChart();
   document.getElementById('summary-modal').style.display='flex';
 }
 
@@ -3149,6 +3203,7 @@ function showScenarioResult(sc, winOk, starCount, stars){
   document.getElementById('sum-achievs').innerHTML=
     `<div style="font-size:.78rem;color:var(--ink-light);margin-bottom:.5rem">◆ 星目標（${starCount}/3 達成）</div>`+
     stars.map(s=>`<div style="font-size:.8rem;margin-bottom:.25rem;color:${s.ok?'var(--green)':'var(--ink-light)'}">${s.ok?'★':'☆'} ${s.label}</div>`).join('');
+  const chEl2=document.getElementById('sum-chart'); if(chEl2) chEl2.innerHTML=emakiChart();
   document.getElementById('summary-modal').style.display='flex';
 }
 
@@ -3344,6 +3399,81 @@ const ICON = {
 };
 function kicon(id,size){ const e=ICON[id]; if(!e) return ''; return `<span class="ki${size?' ki-'+size:''} ki-${e[1]}">${e[0]}</span>`; }
 function kchar(id){ const e=ICON[id]; return e?e[0]:''; }
+// classListの安全なON/OFF（toggle未実装環境でも動く）
+function setCls(el,cls,on){ if(!el||!el.classList) return; try{ on?el.classList.add(cls):el.classList.remove(cls); }catch(e){} }
+
+// ========== B. 家紋SVG（実在の家紋・インライン描画・外部依存なし） ==========
+function monSVG(domId){
+  const S='viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"';
+  const C='stroke="currentColor" fill="none"';
+  switch(domId){
+    case 'satsuma': // 島津：丸に十字
+      return `<svg ${S}><circle cx="50" cy="50" r="40" ${C} stroke-width="9"/><path d="M50 27v46M27 50h46" ${C} stroke-width="11" stroke-linecap="round"/></svg>`;
+    case 'kaga': { // 前田：加賀梅鉢（中心＋周囲5円）
+      let c='<circle cx="50" cy="52" r="13" fill="currentColor"/>';
+      for(let i=0;i<5;i++){const a=-Math.PI/2+i*2*Math.PI/5;
+        c+=`<circle cx="${(50+27*Math.cos(a)).toFixed(1)}" cy="${(52+27*Math.sin(a)).toFixed(1)}" r="11.5" fill="currentColor"/>`;}
+      return `<svg ${S}>${c}</svg>`; }
+    case 'sendai': // 伊達：丸に三つ引両
+      return `<svg ${S}><circle cx="50" cy="50" r="42" ${C} stroke-width="7"/><path d="M25 35h50M23 50h54M25 65h50" ${C} stroke-width="9" stroke-linecap="round"/></svg>`;
+    case 'mito': { // 水戸徳川：三つ葉葵（簡略・葉先が中心を向く）
+      let c='';
+      for(let i=0;i<3;i++){
+        c+=`<g transform="rotate(${i*120} 50 50)"><path d="M50 44C40 52 38 68 50 80C62 68 60 52 50 44Z" fill="currentColor"/></g>`;}
+      return `<svg ${S}><circle cx="50" cy="50" r="44" ${C} stroke-width="6"/>${c}<circle cx="50" cy="50" r="4.5" fill="currentColor"/></svg>`; }
+    case 'hikone': // 井伊：井桁（菱）
+      return `<svg ${S}><g transform="rotate(45 50 50)"><path d="M37 22v56M63 22v56M22 37h56M22 63h56" ${C} stroke-width="9" stroke-linecap="round"/></g></svg>`;
+    case 'tosa': { // 山内：三つ柏（簡略）
+      let c='';
+      for(let i=0;i<3;i++){
+        c+=`<g transform="rotate(${i*120} 50 50)"><path d="M50 52C39 44 37 24 50 10C63 24 61 44 50 52Z" fill="currentColor"/></g>`;}
+      return `<svg ${S}>${c}<circle cx="50" cy="50" r="5" fill="currentColor"/></svg>`; }
+  }
+  return '';
+}
+
+// ========== D. 治世の絵巻グラフ（yearRecordをSVG折れ線で描画） ==========
+function emakiChart(){
+  const rec=gs.yearRecord||[]; if(rec.length<2) return '';
+  const W=470,H=112,L=30,R=440,T=12,B=98;
+  const n=rec.length, x=i=>L+(R-L)*i/(n-1);
+  const maxM=Math.max(1,...rec.map(r=>r.money));
+  const line=(get,color)=>{
+    const pts=rec.map((r,i)=>`${x(i).toFixed(1)},${(B-(B-T)*Math.max(0,Math.min(1,get(r)))).toFixed(1)}`).join(' ');
+    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  };
+  return `<div class="emaki-wrap">
+    <div class="emaki-title">治世の絵巻 — ${rec[0].year}年〜${rec[n-1].year}年</div>
+    <svg viewBox="0 0 ${W} ${H}">
+      <rect x="13" y="3" width="${W-26}" height="${H-6}" rx="3" fill="rgba(255,252,240,.6)" stroke="rgba(138,112,72,.45)"/>
+      <rect x="3" y="0" width="10" height="${H}" rx="4" fill="#4a3826"/>
+      <rect x="${W-13}" y="0" width="10" height="${H}" rx="4" fill="#4a3826"/>
+      <line x1="${L}" y1="${B}" x2="${R}" y2="${B}" stroke="rgba(138,112,72,.4)" stroke-width="1"/>
+      ${line(r=>r.minshin/100,'#3a7d44')}
+      ${line(r=>r.bakufu/100,'#3a6ea5')}
+      ${line(r=>r.money/maxM,'#bd942b')}
+    </svg>
+    <div class="emaki-legend"><span style="color:#3a7d44">━ 民心</span><span style="color:#3a6ea5">━ 幕府心象</span><span style="color:#bd942b">━ 藩金</span></div>
+  </div>`;
+}
+
+// ========== A. 季節パーティクル＋季節めくり ==========
+let __fxSeason=null;
+function updateSeasonFx(){
+  const el=document.getElementById('season-fx'); if(!el) return;
+  const s=getSeason(); if(s===__fxSeason) return; __fxSeason=s;
+  if(s==='spring'){
+    el.innerHTML=Array.from({length:9},(_,i)=>`<i class="petal" style="left:${((i*11+Math.random()*8)%100).toFixed(0)}%;animation-duration:${(9+Math.random()*7).toFixed(1)}s;animation-delay:${(-Math.random()*12).toFixed(1)}s"></i>`).join('');
+  } else if(s==='winter'){
+    el.innerHTML=Array.from({length:14},(_,i)=>`<i class="snow" style="left:${((i*7+Math.random()*6)%100).toFixed(0)}%;animation-duration:${(8+Math.random()*8).toFixed(1)}s;animation-delay:${(-Math.random()*10).toFixed(1)}s;opacity:${(.35+Math.random()*.4).toFixed(2)}"></i>`).join('');
+  } else el.innerHTML='';
+}
+function showSeasonWipe(){
+  const el=document.getElementById('season-wipe'); if(!el||!el.classList) return;
+  const k=el.querySelector('.sw-k');
+  if(k) k.textContent=SEASON_INFO[getSeason()].label;
+  el.classList.remove('on'); void (el.offsetWidth||0); el.classList.add('on');
+}
 function mName(m){return['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'][m-1]}
 function era(y){
   const es=[[1868,'明治'],[1865,'慶応'],[1861,'文久'],[1858,'安政'],[1848,'嘉永'],[1844,'弘化'],[1830,'天保'],[1818,'文政'],[1804,'文化'],[1801,'享和'],[1789,'寛政'],[1781,'天明'],[1764,'明和'],[1751,'宝暦'],[1748,'寛延'],[1744,'延享'],[1736,'元文'],[1716,'享保'],[1704,'宝永'],[1688,'元禄'],[1684,'貞享'],[1661,'寛文'],[1655,'明暦'],[1652,'承応'],[1648,'慶安'],[1644,'正保'],[1624,'寛永'],[1615,'元和'],[1603,'慶長']];
@@ -3371,6 +3501,10 @@ function renderHeader(){
   const q=getSeasonQ();
   const seasonBadge=`<span class="season-badge ${si.cls}" style="font-size:.75rem;padding:.1rem .5rem">${si.label}</span>`;
   document.getElementById('h-date').innerHTML=`${gs.year}年（${era(gs.year)}）第${q}季 ${seasonBadge}`;
+  // 季節環境テーマ＋パーティクル
+  const gsEl=document.getElementById('game-screen');
+  if(gsEl&&typeof gsEl.setAttribute==='function') gsEl.setAttribute('data-season',getSeason());
+  updateSeasonFx();
   setHV('h-koku',fmtK(gs.koku));
   setHV('h-money',fmt(gs.money));
   setHV('h-minshin',Math.floor(gs.minshin));
@@ -3399,7 +3533,7 @@ function renderHeader(){
 
 function renderLeft(){
   const L=gs.lord;
-  document.getElementById('lord-portrait').textContent=(L.surname||'藩')[0];
+  document.getElementById('lord-portrait').innerHTML=monSVG(gs.dom.id)||((L.surname||'藩')[0]);
   const cal=lordCaliber(L);
   document.getElementById('lord-name').innerHTML=`${L.surname} ${L.given} <span class="cal-badge ${cal.cls}">${cal.icon}${cal.label}</span>`;
   const genLabel=L.generation>1?` （第${L.generation}代）`:'';
@@ -3495,6 +3629,8 @@ function renderRight(){
       const canCurb=gs.ap===undefined||gs.ap>=curb.ap;
       const sevText=lv>=80?'極限 — 藩を蝕んでいる':lv>=60?'高い — 早急に抑えよ':lv>=40?'上昇中':'まだ低い';
       const pulse=lv>=60?' threat-pulse':'';
+      // 危機ビネット：脅威80以上で画面の縁が朱に染まる
+      setCls(document.getElementById('danger-vignette'),'on',lv>=80);
       thSec.style.display='';
       thSec.innerHTML=`<div class="threat-hero${pulse}" style="border-color:${color}">
           <div class="threat-head">
@@ -3508,7 +3644,10 @@ function renderRight(){
           </button>
           <div class="threat-desc">${curb.desc}</div>
         </div>`;
-    } else { thSec.style.display='none'; }
+    } else {
+      thSec.style.display='none';
+      setCls(document.getElementById('danger-vignette'),'on',false);
+    }
   }
 
   const eraSec=document.getElementById('era-mingoal-section');
@@ -3567,10 +3706,14 @@ function renderEvents(){
   document.getElementById('event-log').innerHTML=gs.events.map(e=>{
     const isThisTurn=(e.year*100+e.month===cur);
     const sName=sNames[getQuarterForMonth(e.month)]||'';
-    return `<div class="event-entry ev-${e.type}${isThisTurn?' ev-new':''}">
+    // 大事件（critical・因果・史実）は大判カード＋漢字透かし＋朱印
+    const major=e.type==='critical'||/【因果】|【史実】/.test(e.title);
+    const wm=/【因果】/.test(e.title)?'因':/【史実】/.test(e.title)?'史':'変';
+    return `<div class="event-entry ev-${e.type}${isThisTurn?' ev-new':''}${major?' ev-major':''}"${major?` data-wm="${wm}"`:''}>
       <div class="edate">${isThisTurn?'<span class="badge-now">今季</span>':''} ${e.year}年 ${sName}（${era(e.year)}）</div>
       <div class="etitle">${e.title}</div>
       <div class="etext">${e.text}</div>
+      ${major?`<span class="ev-seal">${wm}</span>`:''}
     </div>`;
   }).join('');
 }
@@ -3842,7 +3985,7 @@ function initTitle(){
   document.getElementById('domain-grid').innerHTML=DOMAINS.map(d=>`
     <div class="domain-card" onclick="selDom('${d.id}')" id="dc-${d.id}">
       <div style="display:flex;align-items:center;gap:.55rem;margin-bottom:.4rem">
-        <span class="mon-crest tag-${d.type}">${d.mon}</span>
+        <span class="mon-crest tag-${d.type}" title="${d.name}の家紋">${monSVG(d.id)||d.mon}</span>
         <h3>${d.name}</h3>
         <span class="dtag tag-${d.type}">${d.typeLabel}</span>
       </div>
