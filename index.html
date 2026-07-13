@@ -444,6 +444,16 @@ body{font-family:var(--ff);background:var(--ink);color:var(--ink);min-height:100
 #danger-vignette{position:fixed;inset:0;pointer-events:none;z-index:90;opacity:0;transition:opacity .9s;box-shadow:inset 0 0 130px 34px rgba(154,30,20,.34)}
 #danger-vignette.on{opacity:1;animation:dvPulse 2.4s ease-in-out infinite}
 @keyframes dvPulse{50%{box-shadow:inset 0 0 160px 50px rgba(154,30,20,.46)}}
+/* ========== 今季の商機カード ========== */
+.opp-card{background:linear-gradient(180deg,rgba(222,184,74,.14),rgba(222,184,74,.05));border:1.5px dashed var(--gold);border-radius:var(--r2);padding:.55rem .65rem;box-shadow:var(--shadow)}
+.opp-card.opp-used{opacity:.6;border-style:solid}
+.opp-title{font-size:.82rem;font-weight:bold;color:var(--ink);display:flex;align-items:center;margin-bottom:.25rem}
+.opp-desc{font-size:.68rem;color:var(--ink-light);line-height:1.5;margin-bottom:.45rem}
+.opp-btn{width:100%;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:var(--ink);border:none;padding:.45rem;border-radius:var(--r1);font-family:var(--ff);font-size:.78rem;font-weight:bold;cursor:pointer;transition:filter .15s}
+.opp-btn:hover:not(:disabled){filter:brightness(1.08)}
+.opp-btn:disabled{opacity:.5;cursor:not-allowed}
+.opp-note{font-size:.62rem;color:var(--ink-faint);margin-top:.3rem;text-align:center}
+.opp-done{font-size:.76rem;color:var(--green);font-weight:bold;text-align:center;padding:.3rem}
 /* ========== D. 治世の絵巻グラフ ========== */
 .emaki-wrap{margin:.9rem 0 .3rem}
 .emaki-title{font-size:.78rem;color:var(--ink-light);margin-bottom:.35rem;letter-spacing:.04em;text-align:center}
@@ -595,6 +605,7 @@ body{font-family:var(--ff);background:var(--ink);color:var(--ink);min-height:100
     <!-- RIGHT: Stats & Summary -->
     <div class="panel panel-right">
       <div class="psec" id="threat-section" style="display:none"></div>
+      <div class="psec" id="opp-section" style="display:none"></div>
       <div class="psec" id="era-mingoal-section" style="display:none"></div>
       <div class="psec">
         <h4>◆ 重要指標</h4>
@@ -2030,6 +2041,9 @@ function newState(domId) {
     seeds: [],           // [{id, due(curTurnN), data}]
     seedFlags: {},       // トリガーイベントの発火済みフラグ
     evCd: {},            // 極値カウンターイベントのクールダウン
+    // --- 今季の商機・時代の大波 ---
+    opp: null,           // {id, used} 毎季更新の期間限定チャンス
+    climaxDone: false,   // シナリオ終盤の大事件の発火済みフラグ
     _startSaikai: dom.startSaikai, // 星評価用の開始時借財（startGameで上書き）
     _startKoku: dom.baseKoku,      // 星評価用の開始時石高
     events:[], usedHist:new Set(), turns:0, gameOver:false,
@@ -2198,6 +2212,8 @@ function advanceSeason() {
   gs.maxAP=calcMaxAP();
   gs.ap=gs.maxAP;
   gs.turns++;
+  // 今季の商機を更新（毎季1つの期間限定チャンス）
+  rollOpportunity();
   // ★毎ターン終了時に自動保存
   saveGame();
   // 季節めくり演出
@@ -2313,6 +2329,116 @@ const SEED_RESULTS={
   ronin_ikki:()=>{ applyEf({moneyD:-2000,minshinD:-5}); addEvent('bad','【因果】追い返した浪士、野盗に','数年前に追い払った浪士たちが食い詰めて野盗と化し、領内の街道を荒らしている。討伐の出費もかさむ。'); },
 };
 
+// ========================== 今季の商機（毎季1つの期間限定チャンス） ==========================
+// 毎季ランダムに1つ提示され、その季のうちにAPを割けば掴める。空虚なターンを無くす。
+const OPPORTUNITIES=[
+  { id:'op_kome',   title:'米相場の高騰',     ap:1, cost:0,    desc:'大坂で米が高値をつけている。蔵米を売り払う好機。',
+    cond:g=>true, fn:()=>{ const gain=1000+Math.floor(gs.koku/2500); gs.money+=gain; addEvent('good','商機：米相場の高騰',`蔵米を高値で売り抜け、${fmt(gain)}を得た。`); } },
+  { id:'op_meiko',  title:'名工の来訪',       ap:1, cost:800,  desc:'諸国を渡る名工が城下に滞在中。特産品の技を高められる。',
+    cond:g=>g.dom.products.some(p=>prodLv(p)<PROD_LV_MAX), fn:()=>{ const c=gs.dom.products.filter(p=>prodLv(p)<PROD_LV_MAX); const p=c[Math.floor(Math.random()*c.length)]; gs.prodLevel[p]=prodLv(p)+1; addEvent('good','商機：名工の来訪',`名工の指導で${p}の生産がLv${prodLv(p)}に向上した。`); } },
+  { id:'op_ranpo',  title:'蘭方医の訪問',     ap:1, cost:500,  desc:'長崎帰りの蘭方医が藩主の診察を申し出ている。',
+    cond:g=>g.lord.health<18, fn:()=>{ gs.lord.health=Math.min(20,gs.lord.health+3); gs.rankaku=clamp(gs.rankaku+2,0,100); addEvent('good','商機：蘭方医の訪問',`蘭方医の診察で藩主の健康が回復し、西洋医学の知見も得た。`); } },
+  { id:'op_endan',  title:'名家からの縁談',   ap:1, cost:0,    desc:'格式ある家から縁談の申し出。受ければ藩の格が上がる。',
+    cond:g=>true, fn:()=>{ gs.prestige=clamp(gs.prestige+4,0,100); addEvent('good','商機：名家との縁組',`縁組により藩の威信が高まった。`); } },
+  { id:'op_onmitsu',title:'江戸の内情通',     ap:1, cost:700,  desc:'幕閣の内情に通じた者が、耳寄りな話を売り込んできた。',
+    cond:g=>true, fn:()=>{ gs.bakufu=clamp(gs.bakufu+4,0,100); addEvent('good','商機：江戸の内情',`幕閣の動向を先読みし、幕府との折衝を有利に運んだ。`); } },
+  { id:'op_kengo',  title:'剣豪の門弟募集',   ap:1, cost:600,  desc:'名の知れた剣豪が城下で門弟を募っている。藩士を鍛える好機。',
+    cond:g=>g.military<95, fn:()=>{ gs.military=clamp(gs.military+4,0,100); syncMilitary(); addEvent('good','商機：剣豪の指南',`藩士たちが剣豪の指南を受け、軍の士気が上がった。`); } },
+  { id:'op_kaisen', title:'廻船の寄港',       ap:1, cost:0,    desc:'大きな廻船が湊に入った。特産品をまとめて売り込める。',
+    cond:g=>['satsuma','kaga','tosa','sendai','hikone'].includes(g.dom.id), fn:()=>{ const gain=700*gs.dom.products.length; gs.money+=gain; addEvent('good','商機：廻船の寄港',`特産品を船いっぱいに売り込み、${fmt(gain)}を得た。`); } },
+  { id:'op_kabuki', title:'旅の一座',         ap:1, cost:400,  desc:'人気の旅芸人一座が興行を願い出ている。領民の慰みに。',
+    cond:g=>true, fn:()=>{ gs.minshin=clamp(gs.minshin+5,0,100); addEvent('good','商機：一座の興行',`城下は興行に沸き、民の顔に笑みが戻った。`); } },
+  { id:'op_komonjo',title:'古文書の売り込み', ap:1, cost:300,  desc:'商人が古い書物の束を売りに来た。掘り出し物かもしれない。',
+    cond:g=>true, fn:()=>{ if(Math.random()<0.5){ gs.rankaku=clamp(gs.rankaku+3,0,100); addEvent('good','商機：古文書の中身',`束の中に貴重な蘭書の写本が！蘭学が進んだ。`); } else { gs.prestige=clamp(gs.prestige+2,0,100); addEvent('info','商機：古文書の中身',`藩祖ゆかりの書状が見つかり、家の誉れとなった。`); } } },
+  { id:'op_yamashi',title:'山師の売り込み',   ap:1, cost:1500, desc:'「山に金脈の気配あり」と山師が試掘の資金を求めている。当たれば大きい。',
+    cond:g=>g.money>=1500, fn:()=>{ if(Math.random()<0.5){ gs.money+=4000; addEvent('good','商機：金脈当たり！',`試掘は見事に当たり、${fmt(4000)}相当の鉱石が出た。`); } else { addEvent('bad','商機：山師の空振り',`試掘は空振りに終わった。山師は平謝りして去った。`); } } },
+  { id:'op_yuzuri', title:'隣藩の米融通依頼', ap:1, cost:1200, desc:'凶作の隣藩が米の融通を頼んできた。恩を売る好機だが蔵は痛む。',
+    cond:g=>g.money>=1200, fn:()=>{ gs.prestige=clamp(gs.prestige+3,0,100); gs.bakufu=clamp(gs.bakufu+2,0,100); addEvent('good','商機：隣藩への融通',`米を融通した隣藩から丁重な礼状が届き、藩の評判が上がった。`); } },
+  { id:'op_tanemomi',title:'種籾の改良',      ap:1, cost:800,  desc:'老農が育てた多収の種籾を譲り受けられる。（春限定）',
+    cond:g=>getSeason()==='spring', fn:()=>{ gs.koku=Math.floor(gs.koku*1.004); addEvent('good','商機：種籾の改良',`新しい種籾が行き渡り、石高がわずかに増えた。`); } },
+  { id:'op_wataire',title:'綿入れの施し',     ap:1, cost:600,  desc:'厳しい寒さが続く。綿入れを配れば民は暖まる。（冬限定）',
+    cond:g=>getSeason()==='winter', fn:()=>{ gs.minshin=clamp(gs.minshin+4,0,100); gs.prestige=clamp(gs.prestige+2,0,100); addEvent('good','商機：綿入れの施し',`綿入れを配られた領民が涙ながらに手を合わせた。`); } },
+  { id:'op_toryo',  title:'腕利き棟梁の逗留', ap:1, cost:0,    desc:'城下に腕利きの棟梁が逗留中。建設中の普請が捗る。',
+    cond:g=>!!g.construction, fn:()=>{ if(gs.construction){ gs.construction.seasonsLeft=Math.max(0,gs.construction.seasonsLeft-1); addEvent('good','商機：棟梁の采配',`棟梁の采配で普請が大きく捗った（工期1季短縮）。`); } } },
+];
+function rollOpportunity(){
+  const pool=OPPORTUNITIES.filter(o=>{ try{return !o.cond||o.cond(gs);}catch(e){return false;} });
+  gs.opp=pool.length?{id:pool[Math.floor(Math.random()*pool.length)].id,used:false}:null;
+}
+function execOpp(){
+  if(!gs||gs.gameOver||!gs.opp||gs.opp.used) return;
+  const o=OPPORTUNITIES.find(x=>x.id===gs.opp.id); if(!o) return;
+  if(gs.ap!==undefined&&gs.ap<o.ap){ notif('行動力が不足しています'); return; }
+  if(o.cost&&gs.money<o.cost){ notif('資金が不足しています'); return; }
+  if(o.cost) gs.money-=o.cost;
+  if(gs.ap!==undefined) gs.ap=Math.max(0,gs.ap-o.ap);
+  o.fn();
+  gs.opp.used=true;
+  renderAll();
+}
+
+// ========================== 時代の大波（シナリオ終盤の史実クライマックス） ==========================
+// 各シナリオの終盤に必ず訪れる歴史の大事件。それまでの備え（軍事・蘭学・貯え・人材）で結果が分岐する。
+const CLIMAXES=[
+  { sc:'sc_keicho', year:1614, month:10, build:()=>({
+      title:'大坂の陣 — 出兵の下命',
+      text:'豊臣家討伐の陣触れが下った。幕府は諸大名に出兵を命じている。天下分け目の総仕上げ——ここでの働きが御家の行く末を左右する。',
+      choices:[
+        { label:'精鋭を率いて参陣する', cls:'c-danger', effect:'藩兵を率いて大坂へ向かった。', ef:{},
+          postFn:()=>{ if(gs.military>=55){ applyEf({prestigeD:10,bakufuD:8,military:-5}); addEvent('good','【時代】大坂の陣 — 武功赫々','鍛え上げた藩兵は攻め口で目覚ましい働きを見せ、御家の名は天下に轟いた。日頃の軍備が実を結んだのだ。'); }
+            else { applyEf({military:-12,minshinD:-4,bakufuD:4}); addEvent('bad','【時代】大坂の陣 — 苦い出陣','急ごしらえの藩兵は苦戦を強いられ、多くの将兵を失った。義理は果たしたが、軍備の不足が骨身に沁みた。'); } } },
+        { label:'金納で軍役の一部免除を願う（4,000両）', cls:'c-warn', effect:'大金を納めて出兵の負担を軽くしてもらった。武門の名折れと囁く者もいる。', ef:{ moneyD:-4000, bakufuD:2, prestigeD:-4 } },
+        { label:'病と称して出兵を渋る', cls:'c-danger', effect:'仮病はすぐに見抜かれた。幕府の心証は大きく損なわれた。', ef:{ bakufuD:-12, prestigeD:-3 } },
+      ]}) },
+  { sc:'sc_antei', year:1657, month:1, build:()=>({
+      title:'明暦の大火 — 江戸炎上',
+      text:'江戸の大半を焼き尽くす未曾有の大火が起きた。藩の江戸屋敷も焼け落ち、幕府は諸藩に復興の手伝い普請を求めている。蓄えの真価が問われる時。',
+      choices:[
+        { label:'全力で手伝い普請に応じる（6,000両）', cls:'c-good', effect:'惜しみない奉公は幕府の深い信頼となった。「あの藩は頼りになる」と老中も口にしたという。', ef:{ moneyD:-6000, bakufuD:9, prestigeD:6 } },
+        { label:'応分の負担に留める（2,500両）', cls:'', effect:'求められた分は果たした。可もなく不可もなし。', ef:{ moneyD:-2500, bakufuD:2 } },
+        { label:'借財してでも面目を立てる（借財+8,000両）', cls:'c-warn', effect:'大坂商人から借りた金で普請を全うした。面目は立ったが、借財の重みがのしかかる。', ef:{ saikaiD:8000, bakufuD:7, prestigeD:3 } },
+      ]}) },
+  { sc:'sc_genroku', year:1695, month:7, build:()=>({
+      title:'元禄の改鋳 — 貨幣改鋳令',
+      text:'勘定吟味役・荻原重秀の献策により、幕府が貨幣の改鋳を断行した。金の含有を減らした新貨が出回り、相場が大きく乱れている。動きの速い者だけが得をする。',
+      choices:[
+        { label:'勘定方に旧貨の両替を急がせる', cls:'c-good', effect:'勘定方が相場の混乱に挑んだ。', ef:{},
+          postFn:()=>{ const kanjo=getPostRetainer('kanjo'); if(kanjo&&kanjo.sanjutsu>=8){ gs.money+=2500; addEvent('good','【時代】改鋳 — 見事な裁き',`勘定奉行${kanjo.name}は相場の乱れを読み切り、旧貨を高値で捌いて${fmt(2500)}の利を得た。名奉行の面目躍如である。`); } else { gs.money=Math.max(0,gs.money-1500); addEvent('bad','【時代】改鋳 — 後手に回る','勘定方は相場の動きについていけず、両替で損を出した。腕利きの勘定奉行がいれば……。'); } } },
+        { label:'嵐が過ぎるのを静観する', cls:'', effect:'手を出さなかったが、手持ちの貨幣は目減りした。', ef:{ moneyD:-1000 } },
+        { label:'両替商と結んで差益を狙う', cls:'c-danger', effect:'両替商との連携で大きな差益を得た。だが「殿様が両替で儲けた」と民の目は冷ややかである。', ef:{ moneyD:2500, minshinD:-5 } },
+      ]}) },
+  { sc:'sc_kansei', year:1792, month:7, build:()=>({
+      title:'ラクスマン来航 — 北からの黒い影',
+      text:'露西亜の使節ラクスマンが根室に来航し、通商を求めた。幕府は騒然となり、諸藩に意見を求めている。異国を知る者だけが、この問いに答えられる。',
+      choices:[
+        { label:'蘭学者に諮問し幕府へ意見書を出す', cls:'c-good', effect:'藩の知見が試された。', ef:{},
+          postFn:()=>{ if(gs.rankaku>=35){ applyEf({prestigeD:8,bakufuD:6,rankakuD:4}); addEvent('good','【時代】ラクスマン来航 — 藩論、幕閣を動かす','蘭学者たちの手になる意見書は「異国の事情に通じた卓見」と幕閣で回覧された。蘭学を育てた歳月が藩の名を高めた。'); } else { applyEf({bakufuD:-3,prestigeD:-2}); addEvent('bad','【時代】ラクスマン来航 — 的外れの上申','異国の事情に暗いまま書いた意見書は失笑を買った。蘭学の素地がなかったことが悔やまれる。'); } } },
+        { label:'海防を固めて備える（2,000両）', cls:'c-warn', effect:'沿岸に台場を築き、藩兵の備えを整えた。幕府も藩の心がけを良しとした。', ef:{ moneyD:-2000, military:5, bakufuD:3 } },
+        { label:'様子を見る', cls:'', effect:'嵐は通り過ぎたが、藩は何も残せなかった。世間は異国の影に怯えている。', ef:{ minshinD:-2 } },
+      ]}) },
+  { sc:'sc_kurofune', year:1852, month:10, build:()=>({
+      title:'黒船、来たる — 浦賀沖前夜',
+      text:'亜米利加の艦隊が日本を目指しているとの報が、長崎経由でもたらされた。来春にも浦賀へ現れるという。十余年の備えの成果が、いま白日の下に晒される。',
+      choices:[
+        { label:'藩の備えを幕府に披露する', cls:'c-good', effect:'藩の武備と蘭学が試された。', ef:{},
+          postFn:()=>{ const ready=(gs.rankaku>=50||(gs.mil&&gs.mil.equipment>=1))&&gs.military>=55;
+            if(ready){ applyEf({prestigeD:10,bakufuD:8}); addEvent('good','【時代】黒船前夜 — 備えあり','洋式の装備と蘭学の知見を備えた藩の姿に、幕府の巡見使は目を見張った。「この藩に海防を任せたい」——十余年の投資が結実した瞬間である。'); }
+            else { applyEf({minshinD:-6,bakufuD:-4}); addEvent('bad','【時代】黒船前夜 — 備えなし','旧式の武備と乏しい知見が露呈し、巡見使は渋い顔で帰っていった。領民の間にも不安が広がっている。'); } } },
+        { label:'領民を鎮め、流言を取り締まる', cls:'', effect:'城下の動揺を抑えることに努めた。', ef:{ minshinD:3 } },
+        { label:'攘夷の檄を飛ばす', cls:'c-danger', effect:'「夷狄を打ち払え」の檄に領内の志士は沸いたが、幕府は眉をひそめている。', ef:{ tobakuD:10, minshinD:4, bakufuD:-8 } },
+      ]}) },
+];
+function checkClimax(){
+  if(!gs.scenario||gs.climaxDone||pendingChoice) return;
+  const c=CLIMAXES.find(x=>x.sc===gs.scenario);
+  if(!c) return;
+  if(gs.year<c.year||(gs.year===c.year&&gs.month<c.month)) return;
+  gs.climaxDone=true;
+  const ev=c.build();
+  addEvent('critical',`【時代】${ev.title}`,'歴史の大波が藩に押し寄せている。');
+  showChoice(`【時代】${ev.title}`,ev.text,ev.choices);
+}
+
 // ========================== 家臣の引き抜き（忠誠低下の代償） ==========================
 function maybePoachRetainer(){
   if(pendingChoice||!gs.retainers||!gs.retainers.length) return;
@@ -2336,7 +2462,7 @@ function processTurn() {
   const genCost=(gs.threatId==='shashi')?0:(eraM?eraM.genrokuCost:0);
   gs.money+=inc-exp-genCost;
   if(genCost>0) addEvent('info','元禄奢侈費',`元禄の世の豪奢な風潮により${fmt(genCost)}を支出した。`);
-  if(gs.money<0){ const b=Math.abs(gs.money)+300; gs.saikai+=b; gs.money=0; addEvent('info','借財増加',`資金不足により大坂商人から${fmt(b)}を借り入れた。`); }
+  if(gs.money<0){ const b=Math.abs(gs.money)+300; gs.saikai+=b; gs.money=0; if(b>=1500) addEvent('info','借財増加',`資金不足により大坂商人から${fmt(b)}を借り入れた。`); }
   applyStats();
   applyThreat(); // 脅威メーターの上昇・影響
   handleSankin();
@@ -2358,6 +2484,7 @@ function processTurn() {
     }
   }
   checkHist();
+  if(!pendingChoice) checkClimax();   // 時代の大波（シナリオ終盤の史実クライマックス）
   checkKaiyaku();
   updateTobaku();
   gs.prevStats={minshin:gs.minshin, bakufu:gs.bakufu, money:gs.money};
@@ -2545,7 +2672,7 @@ function showChoice(title, text, choices) {
   );
   pendingChoice = filtered;
   // 緊急案件には朱の「急報」リボンを掲げる
-  const urgent=/【因果】|改易|危機|限界|一揆|存続|急|鳥羽|出奔|離反/.test(title);
+  const urgent=/【因果】|【時代】|改易|危機|限界|一揆|存続|急|鳥羽|出奔|離反/.test(title);
   setCls(document.getElementById('cm-box'),'urgent',urgent);
   document.getElementById('cm-title').textContent = title;
   document.getElementById('cm-text').textContent = text;
@@ -3345,6 +3472,7 @@ function continueGame(){
   o.dom=DOMAINS.find(d=>d.id===(o.dom&&o.dom.id))||DOMAINS[0];
   // 旧セーブとの前方互換ガード
   o.seeds=o.seeds||[]; o.seedFlags=o.seedFlags||{}; o.evCd=o.evCd||{}; o.turnEvents=[];
+  o.opp=o.opp||null; o.climaxDone=!!o.climaxDone;
   gs=o; pendingChoice=null;
   document.getElementById('title-screen').style.display='none';
   document.getElementById('game-screen').style.display='flex';
@@ -3650,6 +3778,29 @@ function renderRight(){
     }
   }
 
+  // 今季の商機カード
+  const oppSec=document.getElementById('opp-section');
+  if(oppSec){
+    const o=gs.opp?OPPORTUNITIES.find(x=>x.id===gs.opp.id):null;
+    if(o){
+      const used=gs.opp.used;
+      const noAP=gs.ap!==undefined&&gs.ap<o.ap;
+      const noMoney=o.cost&&gs.money<o.cost;
+      const ok=!used&&!noAP&&!noMoney;
+      const costStr=o.cost?fmt(o.cost):'無料';
+      oppSec.style.display='';
+      oppSec.innerHTML=`<h4>◆ 今季の商機</h4>
+        <div class="opp-card${used?' opp-used':''}">
+          <div class="opp-title">${o.title}<span class="ap-tag">AP×${o.ap}</span></div>
+          <div class="opp-desc">${o.desc}</div>
+          ${used
+            ?'<div class="opp-done">✓ 商機を活かした</div>'
+            :`<button class="opp-btn" onclick="execOpp()" ${ok?'':'disabled'}>掴む（${costStr}）${noAP?'（AP不足）':noMoney?'（資金不足）':''}</button>
+               <div class="opp-note">この季かぎり — 次の季には別の商機が巡る</div>`}
+        </div>`;
+    } else { oppSec.style.display='none'; }
+  }
+
   const eraSec=document.getElementById('era-mingoal-section');
   if(eraSec){
     if(gs.scenario){
@@ -3706,9 +3857,9 @@ function renderEvents(){
   document.getElementById('event-log').innerHTML=gs.events.map(e=>{
     const isThisTurn=(e.year*100+e.month===cur);
     const sName=sNames[getQuarterForMonth(e.month)]||'';
-    // 大事件（critical・因果・史実）は大判カード＋漢字透かし＋朱印
-    const major=e.type==='critical'||/【因果】|【史実】/.test(e.title);
-    const wm=/【因果】/.test(e.title)?'因':/【史実】/.test(e.title)?'史':'変';
+    // 大事件（critical・因果・史実・時代）は大判カード＋漢字透かし＋朱印
+    const major=e.type==='critical'||/【因果】|【史実】|【時代】/.test(e.title);
+    const wm=/【因果】/.test(e.title)?'因':/【史実】/.test(e.title)?'史':/【時代】/.test(e.title)?'時':'変';
     return `<div class="event-entry ev-${e.type}${isThisTurn?' ev-new':''}${major?' ev-major':''}"${major?` data-wm="${wm}"`:''}>
       <div class="edate">${isThisTurn?'<span class="badge-now">今季</span>':''} ${e.year}年 ${sName}（${era(e.year)}）</div>
       <div class="etitle">${e.title}</div>
@@ -4060,6 +4211,7 @@ function startGame(){
   }
 
   gs.maxAP=calcMaxAP(); gs.ap=gs.maxAP;
+  rollOpportunity(); // 開幕の季にも商機を用意
   const traitStr=gs.lord.traits.map(t=>t.label).join('・');
   if(sc){
     addEvent('history',`${kchar(sc.id)} ${sc.title}`,`${sc.blurb}`);
