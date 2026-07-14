@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>幕藩 御用帳 — 管理</title>
+<style>
+:root{
+  --paper:#f1e6cd;--paper-dark:#e2d1ac;--paper-edge:#d6c096;
+  --ink:#241a10;--ink-light:#5b4630;--ink-faint:#8a7048;
+  --vermilion:#bb3b2c;--indigo:#22436c;--indigo-light:#3a6ea5;
+  --gold:#bd942b;--gold-light:#deb84a;--wood:#876512;
+  --green:#3a7d44;--red:#a52a2a;--plum:#7c3a6c;--border:#b09872;
+  --ff:'Hiragino Mincho ProN','Yu Mincho','YuMincho','MS Mincho',serif;
+  --washi:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--ff);background-color:var(--paper);background-image:var(--washi);color:var(--ink);min-height:100vh}
+header{background:linear-gradient(180deg,#2e2114,#1c130a);color:#f4ead5;padding:.7rem 1.2rem;display:flex;align-items:center;gap:.8rem;border-bottom:2px solid var(--gold)}
+header h1{font-size:1.15rem;color:var(--gold);letter-spacing:.12em}
+header .sub{font-size:.75rem;color:#b6a37e}
+main{max-width:1080px;margin:0 auto;padding:1.2rem}
+h2{font-size:.9rem;color:var(--ink);letter-spacing:.05em;margin:1.4rem 0 .6rem;padding-bottom:.3rem;position:relative}
+h2::before{content:'';display:inline-block;width:.32rem;height:.85rem;background:var(--vermilion);margin-right:.45rem;vertical-align:-1px;border-radius:1px}
+h2::after{content:'';position:absolute;left:0;bottom:0;width:100%;height:2px;background:linear-gradient(90deg,var(--ink-faint),rgba(138,112,72,.2) 60%,transparent)}
+/* ログイン */
+#gate{max-width:380px;margin:14vh auto;background:rgba(255,252,240,.6);border:1px solid var(--gold);border-radius:10px;padding:1.6rem;box-shadow:0 8px 30px rgba(36,25,16,.15);text-align:center}
+#gate h2{margin-top:0}#gate h2::after{display:none}
+#gate input{width:100%;padding:.6rem .8rem;font-family:var(--ff);font-size:.95rem;border:1px solid var(--border);border-radius:5px;background:#fffcf3;margin:.7rem 0}
+#gate button{width:100%;padding:.6rem;background:linear-gradient(180deg,#cf4636,#9a2c1f);color:#fff;border:none;border-radius:5px;font-family:var(--ff);font-size:.95rem;font-weight:bold;cursor:pointer;letter-spacing:.1em}
+#gate .err{color:var(--red);font-size:.78rem;min-height:1.2em;margin-top:.4rem}
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem}
+.kpi{background:rgba(255,252,240,.65);border:1px solid var(--border);border-radius:8px;padding:.7rem .8rem;box-shadow:0 2px 8px rgba(36,25,16,.1)}
+.kpi .kl{font-size:.7rem;color:var(--ink-light)}
+.kpi .kv{font-size:1.5rem;font-weight:bold;line-height:1.3}
+.kpi .kv small{font-size:.75rem;color:var(--ink-faint);font-weight:normal}
+/* 表 */
+table{width:100%;border-collapse:collapse;background:rgba(255,252,240,.55);border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:.82rem}
+th{background:rgba(36,25,16,.85);color:#e8dcc0;padding:.45rem .6rem;text-align:left;font-weight:normal;font-size:.75rem;letter-spacing:.05em}
+td{padding:.42rem .6rem;border-bottom:1px dotted var(--border)}
+tr:last-child td{border-bottom:none}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;padding:1px 8px;border-radius:3px;font-size:.7rem;font-weight:bold;color:#fff}
+.b-start{background:var(--indigo-light)}.b-clear{background:var(--green)}.b-gameover{background:var(--vermilion)}.b-resume{background:var(--wood)}
+.stars{color:var(--gold);letter-spacing:.1em}
+/* チャート */
+.chart{background:rgba(255,252,240,.55);border:1px solid var(--border);border-radius:8px;padding:.8rem}
+.chart svg{display:block;width:100%;height:auto}
+.muted{color:var(--ink-faint);font-size:.75rem}
+#refresh{margin-left:auto;background:transparent;border:1px solid rgba(244,234,213,.4);color:#e8dcc0;padding:.3rem .8rem;border-radius:4px;font-family:var(--ff);font-size:.75rem;cursor:pointer}
+#refresh:hover{border-color:var(--gold);color:var(--gold)}
+#dash{display:none}
+@media(max-width:640px){td:nth-child(2),th:nth-child(2){display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>幕藩 御用帳</h1><span class="sub">プレイ記録の管理</span>
+  <button id="refresh" onclick="load()" style="display:none">更新</button>
+</header>
+
+<div id="gate">
+  <h2>入 帳</h2>
+  <p class="muted">管理の合言葉を入力してください</p>
+  <input id="pw" type="password" placeholder="合言葉" onkeydown="if(event.key==='Enter')login()">
+  <button onclick="login()">帳面を開く</button>
+  <div class="err" id="err"></div>
+</div>
+
+<main id="dash">
+  <h2>大 勢</h2>
+  <div class="kpis" id="kpis"></div>
+
+  <h2>日々の開始数（30日）</h2>
+  <div class="chart" id="daily"></div>
+
+  <h2>シナリオ別</h2>
+  <div id="byScenario"></div>
+
+  <h2>藩別</h2>
+  <div id="byDomain"></div>
+
+  <h2>最近の記録（40件）</h2>
+  <div id="recent"></div>
+  <p class="muted" style="margin:.6rem 0 2rem">player_id は匿名の乱数。個人情報は収集していません。</p>
+</main>
+
+<script>
+const FN_URL='https://fdgyloydctrcwpompaoq.supabase.co/functions/v1/bakuhan-stats';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkZ3lsb3lkY3RyY3dwb21wYW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MjEzNjgsImV4cCI6MjA5NjI5NzM2OH0.-gll2CAGLVcx3bco2zRA6BnXg4Jf9EiZ1FXbl_DOfFI';
+const SC_NAMES={sc_keicho:'関ヶ原の後始末',sc_antei:'藩政の礎',sc_genroku:'元禄の華と影',sc_kansei:'寛政の改革',sc_kurofune:'黒船前夜',sc_ishin:'維新の選択',campaign:'通しモード','?':'不明'};
+const DOM_NAMES={satsuma:'薩摩藩',kaga:'加賀藩',sendai:'仙台藩',mito:'水戸藩',hikone:'彦根藩',tosa:'土佐藩','?':'不明'};
+const EV_NAMES={start:'開始',clear:'クリア',gameover:'敗北',resume:'再開'};
+let PW=sessionStorage.getItem('bk_admin_pw')||'';
+
+async function login(){
+  PW=document.getElementById('pw').value.trim();
+  document.getElementById('err').textContent='';
+  await load(true);
+}
+async function load(fromLogin){
+  if(!PW) return;
+  try{
+    const res=await fetch(FN_URL,{headers:{'x-admin-key':PW,'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
+    if(res.status===401){ document.getElementById('err').textContent='合言葉が違います'; sessionStorage.removeItem('bk_admin_pw'); return; }
+    if(!res.ok){ document.getElementById('err').textContent='取得に失敗しました('+res.status+')'; return; }
+    const d=await res.json();
+    sessionStorage.setItem('bk_admin_pw',PW);
+    document.getElementById('gate').style.display='none';
+    document.getElementById('dash').style.display='block';
+    document.getElementById('refresh').style.display='';
+    render(d);
+  }catch(e){ document.getElementById('err').textContent='通信エラー：'+e.message; }
+}
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function starStr(n){n=+n||0;return '★'.repeat(n)+'☆'.repeat(Math.max(0,3-n));}
+
+function render(d){
+  const t=d.totals||{};
+  const clearRate=t.starts?Math.round((t.clears/t.starts)*100):0;
+  document.getElementById('kpis').innerHTML=[
+    ['総開始数',t.starts||0,''],['遊んだ藩主（累計）',t.players||0,'人'],
+    ['直近7日の藩主',t.players_7d||0,'人'],['クリア',t.clears||0,`回（率${clearRate}%）`],
+    ['敗北',t.gameovers||0,'回'],['続きから再開',t.resumes||0,'回'],
+  ].map(([l,v,u])=>`<div class="kpi"><div class="kl">${l}</div><div class="kv">${v}<small> ${u}</small></div></div>`).join('');
+
+  // 日別チャート
+  const days=d.daily||[];
+  if(days.length){
+    const W=940,H=150,pad=24,bw=Math.max(6,Math.floor((W-pad*2)/Math.max(days.length,1))-4);
+    const max=Math.max(1,...days.map(x=>+x.starts));
+    const bars=days.map((x,i)=>{
+      const h=Math.round((+x.starts/max)*(H-46));
+      const bx=pad+i*(bw+4), by=H-24-h;
+      return `<rect x="${bx}" y="${by}" width="${bw}" height="${h}" rx="2" fill="#3a6ea5"/>
+        <text x="${bx+bw/2}" y="${H-8}" font-size="9" fill="#8a7048" text-anchor="middle">${String(x.d).slice(5)}</text>
+        ${+x.starts?`<text x="${bx+bw/2}" y="${by-4}" font-size="10" fill="#5b4630" text-anchor="middle">${x.starts}</text>`:''}`;
+    }).join('');
+    document.getElementById('daily').innerHTML=`<svg viewBox="0 0 ${W} ${H}">${bars}</svg>`;
+  } else document.getElementById('daily').innerHTML='<p class="muted">まだ記録がありません</p>';
+
+  // シナリオ別
+  const sc=d.by_scenario||[];
+  document.getElementById('byScenario').innerHTML=sc.length?`<table><tr><th>シナリオ</th><th>開始</th><th>クリア</th><th>クリア率</th><th>平均★</th><th>★3達成</th><th>敗北</th></tr>`+
+    sc.map(r=>`<tr><td>${esc(SC_NAMES[r.scenario]||r.scenario)}</td><td class="num">${r.starts}</td><td class="num">${r.clears}</td><td class="num">${r.starts?Math.round(r.clears/r.starts*100):0}%</td><td class="num">${r.avg_stars??'—'}</td><td class="num">${r.star3}</td><td class="num">${r.gameovers}</td></tr>`).join('')+`</table>`
+    :'<p class="muted">まだ記録がありません</p>';
+
+  // 藩別
+  const dm=d.by_domain||[];
+  document.getElementById('byDomain').innerHTML=dm.length?`<table><tr><th>藩</th><th>開始</th><th>クリア</th></tr>`+
+    dm.map(r=>`<tr><td>${esc(DOM_NAMES[r.domain]||r.domain)}</td><td class="num">${r.starts}</td><td class="num">${r.clears}</td></tr>`).join('')+`</table>`
+    :'<p class="muted">まだ記録がありません</p>';
+
+  // 最近
+  const rec=d.recent||[];
+  document.getElementById('recent').innerHTML=rec.length?`<table><tr><th>日時</th><th>藩主ID</th><th>種別</th><th>シナリオ</th><th>藩</th><th>詳細</th></tr>`+
+    rec.map(r=>{
+      const dt=new Date(r.created_at).toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const x=r.data||{};
+      const detail=r.event==='clear'?`<span class="stars">${starStr(x.stars)}</span> ${x.year||''}年`
+        :r.event==='gameover'?`${esc(x.cause||'')} ${x.year||''}年`
+        :r.event==='resume'?`${x.year||''}年から`:'';
+      return `<tr><td>${dt}</td><td class="muted">${esc(String(r.player_id).slice(0,8))}</td><td><span class="badge b-${esc(r.event)}">${EV_NAMES[r.event]||esc(r.event)}</span></td><td>${esc(SC_NAMES[x.scenario]||x.scenario||'')}</td><td>${esc(DOM_NAMES[x.domain]||x.domain||'')}</td><td>${detail}</td></tr>`;
+    }).join('')+`</table>`
+    :'<p class="muted">まだ記録がありません</p>';
+}
+
+if(PW){ document.getElementById('pw').value=PW; load(); }
+</script>
+</body>
+</html>
